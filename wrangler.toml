@@ -8,4 +8,4 @@ ENVIRONMENT = "production"
 
 [[kv_namespaces]]
 binding = "BURNBADGE_KV"
-id = ""  # Will be created via wrangler kv namespace create
+id = "e3aad51bf51c4ab3a91aa1a25f6a5e83"
