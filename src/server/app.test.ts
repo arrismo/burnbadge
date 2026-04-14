@@ -22,6 +22,15 @@ class StubStorage implements TokenStorage {
 
 const DEFAULT_BASE_URL = 'https://badge.test';
 
+interface ShieldsResponseBody {
+  provider: string;
+  providerName: string;
+  badgeEndpoint: string;
+  imageUrl: string;
+  markdown: string;
+  html: string;
+}
+
 function createRecord(token: string, provider: UserRecord['provider'] = 'mock'): UserRecord {
   return {
     token,
@@ -48,7 +57,7 @@ describe('createApp shields badge helpers', () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as ShieldsResponseBody;
 
     expect(body.provider).toBe('mock');
     expect(body.providerName).toBeDefined();
