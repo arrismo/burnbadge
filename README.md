@@ -1,5 +1,28 @@
 # burnbadge
-![](http://localhost:8787/api/badge/48cf83ed-5f41-4858-9508-1d2d0b4b08be/image?style=flat&logo=anthropic)
+
+Hosted at `https://burnbadge.mikaelmoise00.workers.dev`.
+
+Burnbadge lets users register an AI provider key and publish a live spend badge in their `README.md`.
+
+## Quick Start
+
+1. Register a provider key:
+
+```bash
+curl -X POST "https://burnbadge.mikaelmoise00.workers.dev/api/register" \
+  -H "Content-Type: application/json" \
+  -d '{"apiKey":"YOUR_PROVIDER_KEY","provider":"openrouter"}'
+```
+
+2. Copy the returned `token`.
+
+3. Add the badge to `README.md`:
+
+```md
+![AI Spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/YOUR_TOKEN/image?style=flat&logo=openrouter)
+```
+
+The token is public when used in a README badge. That is intentional: it lets anyone view the usage data for that badge, but it does not expose the underlying provider API key.
 
 ## Development
 
@@ -8,8 +31,15 @@
 - Run `npm run typecheck` to ensure the domain modules compile.
 - Use `npm test` (Vitest) to run unit tests.
 - `npm run lint` enforces the repository style rules.
-- `npm run dev` starts a local Hono server on `http://localhost:8787` for manual testing.
+- `npm run dev` starts a local Worker on `http://localhost:8787` for manual testing.
 - `npm run build` then `npm start` serves the compiled output from `dist/`.
+
+## Live Service
+
+- Root URL: `https://burnbadge.mikaelmoise00.workers.dev`
+- Register keys with `POST /api/register`
+- Embed public badges with `/api/shields/{token}/image`
+- Fetch raw usage with `/api/usage/{token}`
 
 ## Project Structure
 
@@ -27,9 +57,23 @@
 - `mockProvider` returns a prebuilt high-usage dataset for local testing. Register with `provider="mock"` to preview charts without touching external APIs.
 - `openaiProvider` remains a placeholder — follow the Anthropic/OpenRouter patterns when implementing.
 
+## README Badge Flow
+
+1. Register once and keep the returned `token`.
+2. Paste the token into a public badge URL in `README.md`.
+3. GitHub renders the badge directly from burnbadge.
+
+Example:
+
+```md
+![OpenRouter Spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/YOUR_TOKEN/image?label=OpenRouter%20Spend&style=flat&logo=openrouter)
+```
+
+This is a public, read-style usage token. People can view the spend data for that token, which is the point of the project.
+
 ## Shields.io Badges
 
 - Call `/api/shields/{token}` to generate badge metadata. The response includes the Shields.io image URL plus ready-to-copy Markdown and HTML snippets.
 - `/api/shields/{token}/image` performs a 302 redirect to `https://img.shields.io/endpoint`, making it safe to embed directly as an image source.
 - Both routes accept the same query parameters as `/api/badge` (`days`, `label`, `color`) and forward Shields extras like `style`, `logo`, `logoColor`, `labelColor`, `logoWidth`, `logoPosition`, `link`, and `cacheSeconds`.
-- Example: `curl "http://localhost:8787/api/shields/{token}?label=AI%20Spend&style=flat"` returns helper snippets, while `![AI Spend](http://localhost:8787/api/shields/{token}/image?style=flat)` renders the dynamic badge.
+- Example: `curl "https://burnbadge.mikaelmoise00.workers.dev/api/shields/{token}?label=AI%20Spend&style=flat"` returns helper snippets, while `![AI Spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/{token}/image?style=flat)` renders the dynamic badge.
