@@ -1,0 +1,11 @@
+name = "burnbadge"
+main = "src/server/cf.ts"
+compatibility_date = "2025-04-14"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+
+[[kv_namespaces]]
+binding = "BURNBADGE_KV"
+id = ""  # Will be created via wrangler kv namespace create

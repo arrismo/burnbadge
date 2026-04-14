@@ -1,0 +1,48 @@
+name: AI Usage Badge
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days to show usage for'
+        required: false
+        default: '7'
+
+jobs:
+  badge:
+    runs-on: ubuntu-latest
+    name: Display AI Usage Badge
+    steps:
+      - name: Get usage from burnbadge
+        id: usage
+        run: |
+          TOKEN="${{ secrets.BURNBADGE_TOKEN }}"
+          BASE_URL="${BURNBADGE_BASE_URL:-https://burnbadge.example.com}"
+          DAYS="${{ github.event.inputs.days || '7' }}"
+          
+          RESPONSE=$(curl -s "${BASE_URL}/api/shields/${TOKEN}?days=${DAYS}")
+          
+          IMAGE_URL=$(echo "$RESPONSE" | jq -r '.imageUrl // empty')
+          MARKDOWN=$(echo "$RESPONSE" | jq -r '.markdown // empty')
+          PROVIDER=$(echo "$RESPONSE" | jq -r '.providerName // empty')
+          
+          echo "image_url=${IMAGE_URL}" >> $GITHUB_OUTPUT
+          echo "markdown=${MARKDOWN}" >> $GITHUB_OUTPUT
+          echo "provider=${PROVIDER}" >> $GITHUB_OUTPUT
+          
+          echo "Provider: ${PROVIDER}"
+          echo "Badge: ${IMAGE_URL}"
+          echo "Markdown: ${MARKDOWN}"
+        env:
+          BURNBADGE_TOKEN: ${{ secrets.BURNBADGE_TOKEN }}
+          BURNBADGE_BASE_URL: ${{ vars.BURNBADGE_BASE_URL }}
+
+      - name: Update job summary
+        run: |
+          echo "## AI Usage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.usage.outputs.markdown }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Provider: ${{ steps.usage.outputs.provider }} | Data from burnbadge*" >> $GITHUB_STEP_SUMMARY
