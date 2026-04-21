@@ -1,4 +1,1 @@
-
-```md
-![AI Spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/3bd8789b-6ad9-4ffd-95e2-827ffce9db8a/image?style=flat&logo=openrouter)
-```
+![AI Spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/0ff1e3cc-bc57-4aed-8959-4b874efe3ac4/image?days=7&style=flat&logo=openrouter)
