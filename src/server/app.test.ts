@@ -21,6 +21,10 @@ class StubStorage implements TokenStorage {
     return this.store.get(token);
   }
 
+  async delete(token: string): Promise<void> {
+    this.store.delete(token);
+  }
+
   clear() {
     this.store.clear();
   }
@@ -208,6 +212,176 @@ describe('createApp shields badge helpers', () => {
     expect(body.badgeUrl).toContain(`/api/badge/${body.badgeToken}`);
     expect(body.chartUrl).toContain(`/api/chart/${body.usageToken}`);
     expect(body.usageUrl).toContain(`/api/usage/${body.usageToken}`);
+  });
+
+  it('rotates only the badge token when requested with the private usage token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, 'mock', usageToken));
+
+    const app = createApp({
+      storage,
+      defaultSecret: DEFAULT_SECRET,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/tokens/${usageToken}/rotate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ badgeToken: true, usageToken: false }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      badgeToken: string;
+      usageToken: string;
+    };
+
+    expect(body.badgeToken).not.toBe(badgeToken);
+    expect(body.usageToken).toBe(usageToken);
+
+    const oldBadgeResponse = await app.request(`/api/badge/${badgeToken}`);
+    expect(oldBadgeResponse.status).toBe(404);
+
+    const newBadgeResponse = await app.request(`/api/badge/${body.badgeToken}`);
+    expect(newBadgeResponse.status).toBe(200);
+
+    const usageResponse = await app.request(`/api/usage/${usageToken}`);
+    expect(usageResponse.status).toBe(200);
+  });
+
+  it('rotates only the usage token when requested with the private usage token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, 'mock', usageToken));
+
+    const app = createApp({
+      storage,
+      defaultSecret: DEFAULT_SECRET,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/tokens/${usageToken}/rotate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ badgeToken: false, usageToken: true }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      badgeToken: string;
+      usageToken: string;
+    };
+
+    expect(body.badgeToken).toBe(badgeToken);
+    expect(body.usageToken).not.toBe(usageToken);
+
+    const oldUsageResponse = await app.request(`/api/usage/${usageToken}`);
+    expect(oldUsageResponse.status).toBe(404);
+
+    const newUsageResponse = await app.request(`/api/usage/${body.usageToken}`);
+    expect(newUsageResponse.status).toBe(200);
+
+    const badgeResponse = await app.request(`/api/badge/${badgeToken}`);
+    expect(badgeResponse.status).toBe(200);
+  });
+
+  it('rejects token rotation when called with the public badge token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, 'mock', usageToken));
+
+    const app = createApp({
+      storage,
+      defaultSecret: DEFAULT_SECRET,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/tokens/${badgeToken}/rotate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ badgeToken: true }),
+    });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('revokes all token access when requested with the private usage token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, 'mock', usageToken));
+
+    const app = createApp({
+      storage,
+      defaultSecret: DEFAULT_SECRET,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/tokens/${usageToken}/revoke`, {
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(204);
+
+    const badgeResponse = await app.request(`/api/badge/${badgeToken}`);
+    expect(badgeResponse.status).toBe(404);
+
+    const usageResponse = await app.request(`/api/usage/${usageToken}`);
+    expect(usageResponse.status).toBe(404);
+  });
+
+  it('rejects token revocation when called with the public badge token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, 'mock', usageToken));
+
+    const app = createApp({
+      storage,
+      defaultSecret: DEFAULT_SECRET,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/tokens/${badgeToken}/revoke`, {
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('splits legacy single-token records during rotation', async () => {
+    const token = 'legacy-token';
+    await storage.save(createLegacyRecord(token));
+
+    const app = createApp({
+      storage,
+      defaultSecret: DEFAULT_SECRET,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/tokens/${token}/rotate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ badgeToken: true, usageToken: true }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      badgeToken: string;
+      usageToken: string;
+    };
+
+    expect(body.badgeToken).not.toBe(token);
+    expect(body.usageToken).not.toBe(token);
+    expect(body.badgeToken).not.toBe(body.usageToken);
+
+    const oldBadgeResponse = await app.request(`/api/badge/${token}`);
+    expect(oldBadgeResponse.status).toBe(404);
+
+    const newBadgeResponse = await app.request(`/api/badge/${body.badgeToken}`);
+    expect(newBadgeResponse.status).toBe(200);
+
+    const newUsageResponse = await app.request(`/api/usage/${body.usageToken}`);
+    expect(newUsageResponse.status).toBe(200);
   });
 
   it('keeps legacy single-token records readable', async () => {

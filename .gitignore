@@ -5,5 +5,5 @@ coverage
 *.log
 AGENTS.md
 chart.svg
-UserFlow.md
-updates.md
+**/*.md
+!**/README.md

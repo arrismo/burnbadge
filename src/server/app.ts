@@ -27,6 +27,19 @@ const registerSchema = z.object({
   provider: z.enum(providerIds),
 });
 
+const rotateTokensSchema = z
+  .object({
+    badgeToken: z.boolean().optional(),
+    usageToken: z.boolean().optional(),
+  })
+  .transform((value) => ({
+    badgeToken: value.badgeToken ?? true,
+    usageToken: value.usageToken ?? true,
+  }))
+  .refine((value) => value.badgeToken || value.usageToken, {
+    message: 'At least one token must be rotated',
+  });
+
 const daysSchema = z
   .string()
   .optional()
@@ -101,6 +114,13 @@ function getUsageToken(record: UserRecord): string {
   return record.usageToken ?? record.token ?? '';
 }
 
+function getRecordTokens(record: UserRecord): string[] {
+  return [record.token, record.badgeToken, record.usageToken].filter(
+    (value, index, list): value is string =>
+      typeof value === 'string' && value.length > 0 && list.indexOf(value) === index,
+  );
+}
+
 function assertBadgeAccess(record: UserRecord, token: string): void {
   if (getBadgeToken(record) !== token) {
     throw new HTTPException(404, { message: 'Unknown token' });
@@ -126,6 +146,21 @@ function buildResourceUrls(baseUrl: string, record: UserRecord) {
     chartUrl: `${base}/api/chart/${usageToken}`,
     usageUrl: `${base}/api/usage/${usageToken}`,
   };
+}
+
+async function replaceRecordTokens(
+  storage: TokenStorage,
+  previousRecord: UserRecord,
+  nextRecord: UserRecord,
+): Promise<void> {
+  const previousTokens = getRecordTokens(previousRecord);
+  await Promise.all(previousTokens.map((token) => storage.delete(token)));
+  await storage.save(nextRecord);
+}
+
+async function revokeRecord(storage: TokenStorage, record: UserRecord): Promise<void> {
+  const tokens = getRecordTokens(record);
+  await Promise.all(tokens.map((token) => storage.delete(token)));
 }
 
 function resolveBaseUrl(
@@ -286,6 +321,44 @@ export function createApp(options: AppOptions = {}) {
     const urls = buildResourceUrls(baseUrl, record);
 
     return c.json(urls, 201);
+  });
+
+  app.post('/api/tokens/:token/rotate', async (c) => {
+    const token = c.req.param('token');
+    const payload = await c.req.json().catch(() => ({}));
+    const parsed = rotateTokensSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HTTPException(400, { message: parsed.error.message });
+    }
+
+    const storage = getStorage(c);
+    const record = await loadRecord(token, storage);
+    assertUsageAccess(record, token);
+
+    const nextRecord: UserRecord = {
+      ...record,
+      badgeToken: parsed.data.badgeToken ? randomUUID() : getBadgeToken(record),
+      usageToken: parsed.data.usageToken ? randomUUID() : getUsageToken(record),
+      createdAt: record.createdAt,
+    };
+    delete nextRecord.token;
+
+    await replaceRecordTokens(storage, record, nextRecord);
+
+    const requestUrl = new URL(c.req.url);
+    const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
+    return c.json(buildResourceUrls(baseUrl, nextRecord));
+  });
+
+  app.post('/api/tokens/:token/revoke', async (c) => {
+    const token = c.req.param('token');
+    const storage = getStorage(c);
+    const record = await loadRecord(token, storage);
+    assertUsageAccess(record, token);
+
+    await revokeRecord(storage, record);
+
+    return c.body(null, 204);
   });
 
   app.get('/api/badge/:token', async (c) => {

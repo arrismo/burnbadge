@@ -22,5 +22,8 @@ export function createKVStorage(kv: KVNamespace): TokenStorage {
       if (!data) return undefined;
       return JSON.parse(data) as UserRecord;
     },
+    async delete(token: string): Promise<void> {
+      await kv.delete(token);
+    },
   };
 }

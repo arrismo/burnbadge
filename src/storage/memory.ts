@@ -3,6 +3,7 @@ import type { UserRecord } from '../lib/types.js';
 export interface TokenStorage {
   save(record: UserRecord): Promise<void>;
   get(token: string): Promise<UserRecord | undefined>;
+  delete(token: string): Promise<void>;
 }
 
 class InMemoryTokenStorage implements TokenStorage {
@@ -19,6 +20,10 @@ class InMemoryTokenStorage implements TokenStorage {
 
   async get(token: string): Promise<UserRecord | undefined> {
     return this.store.get(token);
+  }
+
+  async delete(token: string): Promise<void> {
+    this.store.delete(token);
   }
 }
 
