@@ -12,7 +12,9 @@ export interface DailyUsage {
 }
 
 export interface UserRecord {
-  token: string;
+  token?: string;
+  badgeToken?: string;
+  usageToken?: string;
   encryptedKey: string;
   provider: ProviderId;
   createdAt: string;

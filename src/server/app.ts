@@ -93,12 +93,38 @@ async function loadRecord(token: string, storage: TokenStorage): Promise<UserRec
   return record;
 }
 
-function buildResourceUrls(baseUrl: string, token: string) {
+function getBadgeToken(record: UserRecord): string {
+  return record.badgeToken ?? record.token ?? '';
+}
+
+function getUsageToken(record: UserRecord): string {
+  return record.usageToken ?? record.token ?? '';
+}
+
+function assertBadgeAccess(record: UserRecord, token: string): void {
+  if (getBadgeToken(record) !== token) {
+    throw new HTTPException(404, { message: 'Unknown token' });
+  }
+}
+
+function assertUsageAccess(record: UserRecord, token: string): void {
+  if (getUsageToken(record) !== token) {
+    throw new HTTPException(404, { message: 'Unknown token' });
+  }
+}
+
+function buildResourceUrls(baseUrl: string, record: UserRecord) {
   const base = baseUrl.replace(/\/$/, '');
+  const badgeToken = getBadgeToken(record);
+  const usageToken = getUsageToken(record);
+
   return {
-    badgeUrl: `${base}/api/badge/${token}`,
-    chartUrl: `${base}/api/chart/${token}`,
-    usageUrl: `${base}/api/usage/${token}`,
+    token: badgeToken,
+    badgeToken,
+    usageToken,
+    badgeUrl: `${base}/api/badge/${badgeToken}`,
+    chartUrl: `${base}/api/chart/${usageToken}`,
+    usageUrl: `${base}/api/usage/${usageToken}`,
   };
 }
 
@@ -148,8 +174,8 @@ function buildShieldsUrls(
     forwardParams: ShieldsForwardParams;
   },
 ): { badgeUrl: string; shieldsUrl: string } {
-  const resources = buildResourceUrls(baseUrl, token);
-  const badgeUrl = new URL(resources.badgeUrl);
+  const base = baseUrl.replace(/\/$/, '');
+  const badgeUrl = new URL(`${base}/api/badge/${token}`);
 
   if (typeof options.days === 'number') {
     badgeUrl.searchParams.set('days', String(options.days));
@@ -241,10 +267,12 @@ export function createApp(options: AppOptions = {}) {
     const { apiKey, provider } = parsed.data;
     const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
     const encryptedKey = encryptSecret(apiKey, secret);
-    const token = randomUUID();
+    const badgeToken = randomUUID();
+    const usageToken = randomUUID();
 
     const record: UserRecord = {
-      token,
+      badgeToken,
+      usageToken,
       provider,
       encryptedKey,
       createdAt: new Date().toISOString(),
@@ -255,9 +283,9 @@ export function createApp(options: AppOptions = {}) {
 
     const requestUrl = new URL(c.req.url);
     const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
-    const urls = buildResourceUrls(baseUrl, token);
+    const urls = buildResourceUrls(baseUrl, record);
 
-    return c.json({ token, ...urls }, 201);
+    return c.json(urls, 201);
   });
 
   app.get('/api/badge/:token', async (c) => {
@@ -269,6 +297,7 @@ export function createApp(options: AppOptions = {}) {
 
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
+    assertBadgeAccess(record, token);
     const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
     const apiKey = decryptSecret(record.encryptedKey, secret);
 
@@ -288,6 +317,7 @@ export function createApp(options: AppOptions = {}) {
 
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
+    assertUsageAccess(record, token);
     const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
     const apiKey = decryptSecret(record.encryptedKey, secret);
     const provider = resolveProvider(record.provider, registry);
@@ -304,6 +334,7 @@ export function createApp(options: AppOptions = {}) {
 
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
+    assertUsageAccess(record, token);
     const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
     const apiKey = decryptSecret(record.encryptedKey, secret);
     const provider = resolveProvider(record.provider, registry);
@@ -325,6 +356,7 @@ export function createApp(options: AppOptions = {}) {
 
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
+    assertBadgeAccess(record, token);
     const provider = resolveProvider(record.provider, registry);
     const requestUrl = new URL(c.req.url);
     const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
@@ -359,7 +391,8 @@ export function createApp(options: AppOptions = {}) {
     const forwardParams = pickShieldsParams(query);
 
     const storage = getStorage(c);
-    await loadRecord(token, storage);
+    const record = await loadRecord(token, storage);
+    assertBadgeAccess(record, token);
     const requestUrl = new URL(c.req.url);
     const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
     const { shieldsUrl } = buildShieldsUrls(baseUrl, token, {

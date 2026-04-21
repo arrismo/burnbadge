@@ -10,7 +10,12 @@ export interface KVNamespace {
 export function createKVStorage(kv: KVNamespace): TokenStorage {
   return {
     async save(record: UserRecord): Promise<void> {
-      await kv.put(record.token, JSON.stringify(record));
+      const tokens = [record.token, record.badgeToken, record.usageToken].filter(
+        (value): value is string => typeof value === 'string' && value.length > 0,
+      );
+      const payload = JSON.stringify(record);
+
+      await Promise.all(tokens.map((token) => kv.put(token, payload)));
     },
     async get(token: string): Promise<UserRecord | undefined> {
       const data = await kv.get(token);
