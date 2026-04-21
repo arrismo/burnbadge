@@ -22,5 +22,3 @@ jobs:
 
       - name: Scan for leaked secrets
         uses: trufflesecurity/trufflehog@v3.94.3
-        with:
-          extra_args: --results=verified,unknown --fail
