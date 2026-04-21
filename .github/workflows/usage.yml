@@ -2,7 +2,7 @@ name: AI Usage Badge
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Run daily at midnight
+    - cron: '0 0 */2 * *'  # Run every other day at midnight UTC
   workflow_dispatch:
     inputs:
       days:
@@ -37,7 +37,7 @@ jobs:
           echo "Markdown: ${MARKDOWN}"
         env:
           BURNBADGE_TOKEN: ${{ secrets.BURNBADGE_TOKEN }}
-          BURNBADGE_BASE_URL: ${{ vars.BURNBADGE_BASE_URL }}
+          BURNBADGE_BASE_URL: ${{ secrets.BURNBADGE_BASE_URL }}
 
       - name: Update job summary
         run: |
