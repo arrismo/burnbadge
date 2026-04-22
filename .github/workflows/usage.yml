@@ -26,7 +26,7 @@ jobs:
             https://openrouter.ai/api/v1/activity)
 
           TODAY=$(date -u +%F)
-          START_DATE=$(date -u -v-$((${DAYS} - 1))d +%F)
+          START_DATE=$(python -c "from datetime import date, timedelta; print((date.today() - timedelta(days=${DAYS}-1)).isoformat())")
 
           PAYLOAD=$(jq -n \
             --argjson activity "$ACTIVITY_RESPONSE" \
