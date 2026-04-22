@@ -7,10 +7,7 @@ import type { Env } from 'hono';
 import { z } from 'zod';
 
 import { renderUsageChart } from '../lib/chart.js';
-import { decryptSecret, encryptSecret } from '../lib/crypto.js';
 import { formatCurrencyUSD } from '../lib/format.js';
-import type { ProviderRegistry, UsageProvider } from '../lib/provider.js';
-import { getProvider } from '../providers/registry.js';
 import type { DailyUsage, ProviderId, UserRecord } from '../lib/types.js';
 import {
   memoryTokenStorage,
@@ -22,9 +19,26 @@ const CACHE_HEADER = 's-maxage=3600';
 const providerIds = ['anthropic', 'openai', 'openrouter', 'mock'] as const satisfies
   readonly ProviderId[];
 
-const registerSchema = z.object({
-  apiKey: z.string().min(12, 'apiKey must be at least 12 characters'),
-  provider: z.enum(providerIds),
+const createProjectSchema = z.object({
+  provider: z.enum(providerIds).optional(),
+});
+
+const dailyUsageSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must use YYYY-MM-DD format'),
+  cost: z.number().finite().nonnegative(),
+  breakdown: z
+    .array(
+      z.object({
+        model: z.string().min(1, 'model is required'),
+        cost: z.number().finite().nonnegative(),
+      }),
+    )
+    .optional(),
+});
+
+const ingestUsageSchema = z.object({
+  provider: z.enum(providerIds).optional(),
+  usage: z.array(dailyUsageSchema).min(1, 'usage must include at least one daily entry'),
 });
 
 const rotateTokensSchema = z
@@ -54,15 +68,12 @@ const colorSchema = z.string().optional();
 
 export interface AppOptions {
   storage?: TokenStorage;
-  registry?: ProviderRegistry;
-  defaultSecret?: string;
   defaultBaseUrl?: string;
   kvStorage?: TokenStorage;
 }
 
 export interface AppBindings extends Env {
   Bindings: {
-    BURNBADGE_SECRET: string;
     BASE_URL?: string;
     BURNBADGE_KV?: {
       get: (key: string) => Promise<string | null>;
@@ -72,13 +83,14 @@ export interface AppBindings extends Env {
   };
 }
 
-function resolveSecret(requestSecret?: string, fallbackSecret?: string): string {
-  const secret = requestSecret ?? fallbackSecret;
-  if (!secret) {
-    throw new HTTPException(500, { message: 'Missing BURNBADGE_SECRET' });
-  }
-  return secret;
-}
+type AppContext = {
+  req: {
+    url: string;
+    json: () => Promise<unknown>;
+  };
+  env: AppBindings['Bindings'];
+  json: (body: unknown, status?: number) => Response;
+};
 
 function makeBadgeResponse({
   label,
@@ -131,6 +143,38 @@ function assertUsageAccess(record: UserRecord, token: string): void {
   if (getUsageToken(record) !== token) {
     throw new HTTPException(404, { message: 'Unknown token' });
   }
+}
+
+function normalizeUsageWindow(usage: DailyUsage[]): DailyUsage[] {
+  const usageByDate = new Map<string, DailyUsage>();
+
+  for (const entry of usage) {
+    const breakdown = entry.breakdown
+      ?.filter((item) => item.cost > 0)
+      .map((item) => ({ model: item.model, cost: item.cost }));
+
+    usageByDate.set(entry.date, {
+      date: entry.date,
+      cost: entry.cost,
+      breakdown: breakdown && breakdown.length > 0 ? breakdown : undefined,
+    });
+  }
+
+  return Array.from(usageByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function filterUsageWindow(usage: DailyUsage[] | undefined, days?: number): DailyUsage[] {
+  const series = normalizeUsageWindow(usage ?? []);
+  if (typeof days !== 'number' || !Number.isFinite(days) || days <= 0) {
+    return series;
+  }
+  return series.slice(-Math.trunc(days));
+}
+
+async function parseJsonBody(c: { req: { json: () => Promise<unknown> } }): Promise<unknown> {
+  return c.req.json().catch(() => {
+    throw new HTTPException(400, { message: 'Invalid JSON body' });
+  });
 }
 
 function buildResourceUrls(baseUrl: string, record: UserRecord) {
@@ -237,43 +281,9 @@ function buildShieldsUrls(
   };
 }
 
-function resolveProvider(
-  providerId: ProviderId,
-  registry?: ProviderRegistry,
-): UsageProvider {
-  if (registry) {
-    const provider = registry[providerId];
-    if (!provider) {
-      throw new HTTPException(400, { message: `Unsupported provider: ${providerId}` });
-    }
-    return provider;
-  }
-  return getProvider(providerId);
-}
-
-function unwrapProviderUsage(error: unknown): never {
-  const message = error instanceof Error ? error.message : 'Unknown provider error';
-  const safeMessage = message || 'Provider request failed';
-  throw new HTTPException(502, { message: `Provider error: ${safeMessage}` });
-}
-
-async function fetchUsage(
-  provider: UsageProvider,
-  apiKey: string,
-  days: number | undefined,
-): Promise<DailyUsage[]> {
-  try {
-    return await provider.fetchDailyUsage({ apiKey, days });
-  } catch (error) {
-    unwrapProviderUsage(error);
-  }
-}
-
 export function createApp(options: AppOptions = {}) {
   const fallbackStorage = options.storage ?? memoryTokenStorage;
   const kvStorage = options.kvStorage;
-  const registry = options.registry;
-  const defaultSecret = options.defaultSecret ?? process.env.BURNBADGE_SECRET;
   const defaultBaseUrl = options.defaultBaseUrl ?? process.env.BURNBADGE_BASE_URL;
 
   const app = new Hono<AppBindings>();
@@ -289,28 +299,24 @@ export function createApp(options: AppOptions = {}) {
 
   app.get('/', (c) => c.text('burnbadge api ready'));
 
-  app.post('/api/register', async (c) => {
-    const payload = await c.req.json().catch(() => {
-      throw new HTTPException(400, { message: 'Invalid JSON body' });
-    });
-
-    const parsed = registerSchema.safeParse(payload);
+  const handleCreateProject = async (c: AppContext) => {
+    const payload = await parseJsonBody(c);
+    const parsed = createProjectSchema.safeParse(payload);
     if (!parsed.success) {
       throw new HTTPException(400, { message: parsed.error.message });
     }
 
-    const { apiKey, provider } = parsed.data;
-    const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
-    const encryptedKey = encryptSecret(apiKey, secret);
     const badgeToken = randomUUID();
     const usageToken = randomUUID();
+    const createdAt = new Date().toISOString();
 
     const record: UserRecord = {
       badgeToken,
       usageToken,
-      provider,
-      encryptedKey,
-      createdAt: new Date().toISOString(),
+      provider: parsed.data.provider,
+      usage: [],
+      createdAt,
+      updatedAt: createdAt,
     };
 
     const storage = getStorage(c);
@@ -321,6 +327,39 @@ export function createApp(options: AppOptions = {}) {
     const urls = buildResourceUrls(baseUrl, record);
 
     return c.json(urls, 201);
+  };
+
+  app.post('/api/projects', handleCreateProject);
+
+  app.post('/api/register', handleCreateProject);
+
+  app.post('/api/usage/:token', async (c) => {
+    const token = c.req.param('token');
+    const payload = await parseJsonBody(c);
+
+    const parsed = ingestUsageSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HTTPException(400, { message: parsed.error.message });
+    }
+
+    const storage = getStorage(c);
+    const record = await loadRecord(token, storage);
+    assertUsageAccess(record, token);
+
+    const nextRecord: UserRecord = {
+      ...record,
+      provider: parsed.data.provider ?? record.provider,
+      usage: normalizeUsageWindow(parsed.data.usage),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await replaceRecordTokens(storage, record, nextRecord);
+
+    return c.json({
+      provider: nextRecord.provider ?? null,
+      usage: nextRecord.usage ?? [],
+      updatedAt: nextRecord.updatedAt,
+    });
   });
 
   app.post('/api/tokens/:token/rotate', async (c) => {
@@ -371,11 +410,7 @@ export function createApp(options: AppOptions = {}) {
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
     assertBadgeAccess(record, token);
-    const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
-    const apiKey = decryptSecret(record.encryptedKey, secret);
-
-    const provider = resolveProvider(record.provider, registry);
-    const usage = await fetchUsage(provider, apiKey, days);
+    const usage = filterUsageWindow(record.usage, days);
     const total = usage.reduce((sum, entry) => sum + entry.cost, 0);
     const message = formatCurrencyUSD(total);
 
@@ -391,13 +426,14 @@ export function createApp(options: AppOptions = {}) {
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
     assertUsageAccess(record, token);
-    const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
-    const apiKey = decryptSecret(record.encryptedKey, secret);
-    const provider = resolveProvider(record.provider, registry);
-    const usage = await fetchUsage(provider, apiKey, days);
+    const usage = filterUsageWindow(record.usage, days);
 
     c.header('Cache-Control', CACHE_HEADER);
-    return c.json({ provider: record.provider, usage });
+    return c.json({
+      provider: record.provider ?? null,
+      usage,
+      updatedAt: record.updatedAt ?? null,
+    });
   });
 
   app.get('/api/chart/:token', async (c) => {
@@ -408,11 +444,8 @@ export function createApp(options: AppOptions = {}) {
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
     assertUsageAccess(record, token);
-    const secret = resolveSecret(c.env?.BURNBADGE_SECRET, defaultSecret);
-    const apiKey = decryptSecret(record.encryptedKey, secret);
-    const provider = resolveProvider(record.provider, registry);
-    const usage = await fetchUsage(provider, apiKey, days);
-    const svg = renderUsageChart(usage, provider.displayName);
+    const usage = filterUsageWindow(record.usage, days);
+    const svg = renderUsageChart(usage, record.provider ?? 'Burnbadge');
 
     c.header('Content-Type', 'image/svg+xml; charset=utf-8');
     c.header('Cache-Control', CACHE_HEADER);
@@ -430,7 +463,6 @@ export function createApp(options: AppOptions = {}) {
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
     assertBadgeAccess(record, token);
-    const provider = resolveProvider(record.provider, registry);
     const requestUrl = new URL(c.req.url);
     const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
     const { badgeUrl, shieldsUrl } = buildShieldsUrls(baseUrl, token, {
@@ -440,14 +472,15 @@ export function createApp(options: AppOptions = {}) {
       forwardParams,
     });
 
-    const altText = label && label.trim().length > 0 ? label : `${provider.displayName} spend`;
+    const providerName = record.provider ?? 'Burnbadge';
+    const altText = label && label.trim().length > 0 ? label : `${providerName} spend`;
     const markdown = `![${altText}](${shieldsUrl})`;
     const html = `<img src="${shieldsUrl}" alt="${altText}" />`;
 
     c.header('Cache-Control', 'no-store');
     return c.json({
-      provider: record.provider,
-      providerName: provider.displayName,
+      provider: record.provider ?? null,
+      providerName,
       badgeEndpoint: badgeUrl,
       imageUrl: shieldsUrl,
       markdown,

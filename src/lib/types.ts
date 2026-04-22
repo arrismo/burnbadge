@@ -15,8 +15,9 @@ export interface UserRecord {
   token?: string;
   badgeToken?: string;
   usageToken?: string;
-  encryptedKey: string;
-  provider: ProviderId;
+  provider?: ProviderId;
+  usage?: DailyUsage[];
+  updatedAt?: string;
   createdAt: string;
 }
 

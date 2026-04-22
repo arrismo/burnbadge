@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from './app.js';
-import { encryptSecret } from '../lib/crypto.js';
 import type { TokenStorage } from '../storage/memory.js';
-import type { UserRecord } from '../lib/types.js';
+import type { DailyUsage, UserRecord } from '../lib/types.js';
+import { getMockUsage } from '../providers/mock.js';
 
 class StubStorage implements TokenStorage {
   private readonly store = new Map<string, UserRecord>();
@@ -31,10 +31,9 @@ class StubStorage implements TokenStorage {
 }
 
 const DEFAULT_BASE_URL = 'https://badge.test';
-const DEFAULT_SECRET = 'secret';
 
 interface ShieldsResponseBody {
-  provider: string;
+  provider: string | null;
   providerName: string;
   badgeEndpoint: string;
   imageUrl: string;
@@ -42,33 +41,41 @@ interface ShieldsResponseBody {
   html: string;
 }
 
+const MOCK_USAGE = getMockUsage();
+
 function createRecord(
   badgeToken: string,
   provider: UserRecord['provider'] = 'mock',
   usageToken = `${badgeToken}-usage`,
+  usage: DailyUsage[] = MOCK_USAGE,
 ): UserRecord {
+  const timestamp = new Date().toISOString();
   return {
     badgeToken,
     usageToken,
     provider,
-    encryptedKey: encryptSecret('mock-api-key-12345', DEFAULT_SECRET),
-    createdAt: new Date().toISOString(),
+    usage,
+    createdAt: timestamp,
+    updatedAt: timestamp,
   };
 }
 
 function createLegacyRecord(
   token: string,
   provider: UserRecord['provider'] = 'mock',
+  usage: DailyUsage[] = MOCK_USAGE,
 ): UserRecord {
+  const timestamp = new Date().toISOString();
   return {
     token,
     provider,
-    encryptedKey: encryptSecret('mock-api-key-12345', DEFAULT_SECRET),
-    createdAt: new Date().toISOString(),
+    usage,
+    createdAt: timestamp,
+    updatedAt: timestamp,
   };
 }
 
-describe('createApp shields badge helpers', () => {
+describe('createApp push usage model', () => {
   const storage = new StubStorage();
 
   beforeEach(() => {
@@ -81,7 +88,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
     const response = await app.request(
@@ -92,7 +98,7 @@ describe('createApp shields badge helpers', () => {
     const body = (await response.json()) as ShieldsResponseBody;
 
     expect(body.provider).toBe('mock');
-    expect(body.providerName).toBeDefined();
+    expect(body.providerName).toBe('mock');
     expect(body.badgeEndpoint).toContain(`/api/badge/${token}`);
     expect(body.imageUrl).toContain('https://img.shields.io/endpoint');
     expect(body.imageUrl).toContain('style=flat-square');
@@ -106,7 +112,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
     const response = await app.request(`/api/shields/${token}/image?days=7`);
@@ -128,7 +133,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
     const response = await app.request(`/api/usage/${badgeToken}`);
@@ -143,12 +147,12 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
     const badgeResponse = await app.request(`/api/badge/${badgeToken}`);
     expect(badgeResponse.status).toBe(200);
+    expect(await badgeResponse.json()).toMatchObject({ message: '$4364.21' });
 
     const privateResponse = await app.request(`/api/badge/${usageToken}`);
     expect(privateResponse.status).toBe(404);
@@ -161,15 +165,65 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
-    const response = await app.request(`/api/usage/${usageToken}`);
+    const response = await app.request(`/api/usage/${usageToken}?days=3`);
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { provider: string; usage: unknown[] };
+    const body = (await response.json()) as { provider: string; usage: DailyUsage[] };
     expect(body.provider).toBe('mock');
-    expect(Array.isArray(body.usage)).toBe(true);
+    expect(body.usage).toHaveLength(3);
+  });
+
+  it('accepts pushed usage with the private usage token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, undefined, usageToken, []));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/usage/${usageToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'openrouter',
+        usage: [
+          { date: '2026-04-20', cost: 1.25 },
+          { date: '2026-04-21', cost: 2.5, breakdown: [{ model: 'openai/gpt-4.1', cost: 2.5 }] },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { provider: string; usage: DailyUsage[] };
+    expect(body.provider).toBe('openrouter');
+    expect(body.usage).toHaveLength(2);
+
+    const badgeResponse = await app.request(`/api/badge/${badgeToken}`);
+    expect(badgeResponse.status).toBe(200);
+    expect(await badgeResponse.json()).toMatchObject({ message: '$3.75' });
+  });
+
+  it('rejects usage ingestion from the public badge token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, 'mock', usageToken));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const response = await app.request(`/api/usage/${badgeToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usage: [{ date: '2026-04-21', cost: 1 }] }),
+    });
+
+    expect(response.status).toBe(404);
   });
 
   it('blocks chart reads when only the public badge token is known', async () => {
@@ -178,7 +232,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
     const response = await app.request(`/api/chart/${badgeToken}`);
@@ -186,16 +239,15 @@ describe('createApp shields badge helpers', () => {
     expect(response.status).toBe(404);
   });
 
-  it('returns private usage and chart URLs on registration', async () => {
+  it('returns private usage and chart URLs on project creation', async () => {
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
-    const response = await app.request('/api/register', {
+    const response = await app.request('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey: 'mock-api-key-12345', provider: 'mock' }),
+      body: JSON.stringify({ provider: 'mock' }),
     });
 
     expect(response.status).toBe(201);
@@ -214,6 +266,23 @@ describe('createApp shields badge helpers', () => {
     expect(body.usageUrl).toContain(`/api/usage/${body.usageToken}`);
   });
 
+  it('keeps the legacy register route as a create-project alias', async () => {
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+    const response = await app.request('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'mock' }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { badgeToken: string; usageToken: string };
+    expect(body.badgeToken).toBeTruthy();
+    expect(body.usageToken).toBeTruthy();
+  });
+
   it('rotates only the badge token when requested with the private usage token', async () => {
     const badgeToken = 'badge-public';
     const usageToken = 'usage-private';
@@ -221,7 +290,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
@@ -257,7 +325,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
@@ -293,7 +360,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
@@ -313,7 +379,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
@@ -337,7 +402,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
@@ -354,7 +418,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
@@ -390,7 +453,6 @@ describe('createApp shields badge helpers', () => {
 
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
 
@@ -404,7 +466,6 @@ describe('createApp shields badge helpers', () => {
   it('returns 404 when the token is unknown', async () => {
     const app = createApp({
       storage,
-      defaultSecret: DEFAULT_SECRET,
       defaultBaseUrl: DEFAULT_BASE_URL,
     });
     const response = await app.request('/api/shields/unknown-token');

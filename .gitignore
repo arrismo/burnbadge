@@ -7,3 +7,4 @@ AGENTS.md
 chart.svg
 **/*.md
 !**/README.md
+!**/push-model-migration.md

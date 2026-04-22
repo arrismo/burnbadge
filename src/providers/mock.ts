@@ -1,5 +1,4 @@
 import type { DailyUsage, DailyUsageBreakdown } from '../lib/types.js';
-import type { ProviderFetchArgs, UsageProvider } from '../lib/provider.js';
 
 const DEFAULT_DAYS = 7;
 
@@ -64,18 +63,6 @@ function cloneUsage(series: readonly ImmutableDailyUsage[]): DailyUsage[] {
     breakdown: entry.breakdown?.map((item) => ({ model: item.model, cost: item.cost })),
   }));
 }
-
-async function fetchMockUsage(args: ProviderFetchArgs): Promise<DailyUsage[]> {
-  const days = clampDays(args.days);
-  const slice = MOCK_USAGE_SERIES.slice(-days);
-  return cloneUsage(slice);
-}
-
-export const mockProvider: UsageProvider = {
-  id: 'mock',
-  displayName: 'Mock High Usage',
-  fetchDailyUsage: fetchMockUsage,
-};
 
 export function getMockUsage(days?: number): DailyUsage[] {
   return cloneUsage(MOCK_USAGE_SERIES.slice(-clampDays(days)));
