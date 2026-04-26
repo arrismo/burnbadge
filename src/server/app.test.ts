@@ -106,6 +106,38 @@ describe('createApp push usage model', () => {
     expect(body.html).toContain('img');
   });
 
+  it('adds a default provider logo to Shields URLs', async () => {
+    const token = 'token-openrouter';
+    await storage.save(createRecord(token, 'openrouter'));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+    const response = await app.request(`/api/shields/${token}`);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ShieldsResponseBody;
+    const shieldsUrl = new URL(body.imageUrl);
+    expect(shieldsUrl.searchParams.get('logo')).toBe('openrouter');
+  });
+
+  it('preserves an explicit Shields logo override', async () => {
+    const token = 'token-anthropic';
+    await storage.save(createRecord(token, 'anthropic'));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+    const response = await app.request(`/api/shields/${token}?logo=github`);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ShieldsResponseBody;
+    const shieldsUrl = new URL(body.imageUrl);
+    expect(shieldsUrl.searchParams.get('logo')).toBe('github');
+  });
+
   it('redirects to the Shields.io endpoint for the image route', async () => {
     const token = 'token-image';
     await storage.save(createRecord(token));
@@ -156,6 +188,23 @@ describe('createApp push usage model', () => {
 
     const privateResponse = await app.request(`/api/badge/${usageToken}`);
     expect(privateResponse.status).toBe(404);
+  });
+
+  it('uses the provider name as the default badge label', async () => {
+    const badgeToken = 'badge-provider';
+    await storage.save(createRecord(badgeToken, 'openrouter'));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+    const response = await app.request(`/api/badge/${badgeToken}`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      label: 'openrouter',
+      message: '$4364.21',
+    });
   });
 
   it('returns usage data when the private usage token is used', async () => {

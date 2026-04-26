@@ -94,16 +94,18 @@ type AppContext = {
 
 function makeBadgeResponse({
   label,
+  provider,
   message,
   color,
 }: {
   label?: string;
+  provider?: string;
   message: string;
   color?: string;
 }) {
   return {
     schemaVersion: 1,
-    label: label ?? 'ai spend',
+    label: label ?? provider ?? 'burnbadge',
     message,
     color: color ?? 'blueviolet',
     cacheSeconds: 3600,
@@ -228,6 +230,11 @@ const SHIELDS_FORWARD_KEYS = [
   'link',
 ] as const;
 
+const DEFAULT_PROVIDER_LOGOS: Partial<Record<ProviderId, string>> = {
+  anthropic: 'anthropic',
+  openrouter: 'openrouter',
+};
+
 function pickShieldsParams(
   query: Record<string, string | string[] | undefined>,
 ): ShieldsForwardParams {
@@ -241,6 +248,25 @@ function pickShieldsParams(
     }
   }
   return params;
+}
+
+function resolveShieldsParams(
+  forwardParams: ShieldsForwardParams,
+  provider?: ProviderId,
+): ShieldsForwardParams {
+  if (forwardParams.logo || !provider) {
+    return forwardParams;
+  }
+
+  const logo = DEFAULT_PROVIDER_LOGOS[provider];
+  if (!logo) {
+    return forwardParams;
+  }
+
+  return {
+    ...forwardParams,
+    logo,
+  };
 }
 
 function buildShieldsUrls(
@@ -415,7 +441,7 @@ export function createApp(options: AppOptions = {}) {
     const message = formatCurrencyUSD(total);
 
     c.header('Cache-Control', CACHE_HEADER);
-    return c.json(makeBadgeResponse({ label, message, color }));
+    return c.json(makeBadgeResponse({ label, provider: record.provider, message, color }));
   });
 
   app.get('/api/usage/:token', async (c) => {
@@ -465,11 +491,12 @@ export function createApp(options: AppOptions = {}) {
     assertBadgeAccess(record, token);
     const requestUrl = new URL(c.req.url);
     const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
+    const shieldsParams = resolveShieldsParams(forwardParams, record.provider);
     const { badgeUrl, shieldsUrl } = buildShieldsUrls(baseUrl, token, {
       days,
       label,
       color,
-      forwardParams,
+      forwardParams: shieldsParams,
     });
 
     const providerName = record.provider ?? 'Burnbadge';
@@ -501,11 +528,12 @@ export function createApp(options: AppOptions = {}) {
     assertBadgeAccess(record, token);
     const requestUrl = new URL(c.req.url);
     const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
+    const shieldsParams = resolveShieldsParams(forwardParams, record.provider);
     const { shieldsUrl } = buildShieldsUrls(baseUrl, token, {
       days,
       label,
       color,
-      forwardParams,
+      forwardParams: shieldsParams,
     });
 
     return c.redirect(shieldsUrl, 302);
