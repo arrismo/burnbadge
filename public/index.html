@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burnbadge — AI Spend Badges</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #8957e5;
+      --accent-hover: #a371f7;
+      --green: #3fb950;
+      --red: #f85149;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      --mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    select, input[type="text"] {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: var(--font);
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: var(--font);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { border-color: var(--text-muted); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+
+    .btn-danger:hover { background: var(--red); color: #fff; }
+
+    .token-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .token-row code {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      word-break: break-all;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .token-row .copy-btn {
+      flex-shrink: 0;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .badge-preview {
+      text-align: center;
+      padding: 1.5rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 1rem 0;
+    }
+
+    .badge-preview img {
+      max-width: 100%;
+    }
+
+    .steps {
+      counter-reset: step;
+      list-style: none;
+    }
+
+    .steps li {
+      position: relative;
+      padding-left: 2rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    .steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1.4rem;
+      height: 1.4rem;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .steps code {
+      background: var(--bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+    }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      margin: 0.75rem 0;
+    }
+
+    .hidden { display: none; }
+
+    .error {
+      color: var(--red);
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .success {
+      color: var(--green);
+      font-size: 0.85rem;
+    }
+
+    .manage-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .manage-section h3 {
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .manage-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+
+    .tab {
+      padding: 0.5rem 1rem;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: var(--font);
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .workflow-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .workflow-header h3 {
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔥 Burnbadge</h1>
+      <p>AI spend badges for your GitHub README</p>
+    </header>
+
+    <!-- Create Project -->
+    <div id="create-card" class="card">
+      <h2>Create a Project</h2>
+      <label for="provider-select">Provider</label>
+      <select id="provider-select">
+        <option value="openrouter">OpenRouter</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="openai">OpenAI</option>
+      </select>
+      <button class="btn-primary" id="create-btn">Create Project</button>
+      <div id="create-error" class="error hidden"></div>
+    </div>
+
+    <!-- Project Dashboard -->
+    <div id="dashboard" class="hidden">
+      <!-- Tokens -->
+      <div class="card">
+        <h2>Your Tokens</h2>
+        <label>Badge Token (public — for README)</label>
+        <div class="token-row">
+          <code id="badge-token"></code>
+          <button class="btn-secondary copy-btn" data-target="badge-token">Copy</button>
+        </div>
+        <label>Usage Token (private — for GitHub Actions)</label>
+        <div class="token-row">
+          <code id="usage-token"></code>
+          <button class="btn-secondary copy-btn" data-target="usage-token">Copy</button>
+        </div>
+      </div>
+
+      <!-- Badge Preview -->
+      <div class="card">
+        <h2>Badge Preview</h2>
+        <div class="badge-preview">
+          <img id="badge-img" src="" alt="AI Spend Badge">
+        </div>
+        <label>Embed in your README</label>
+        <div class="token-row">
+          <code id="badge-markdown"></code>
+          <button class="btn-secondary copy-btn" data-target="badge-markdown">Copy</button>
+        </div>
+      </div>
+
+      <!-- Setup Instructions -->
+      <div class="card">
+        <h2>Setup Instructions</h2>
+        <ol class="steps">
+          <li>Add these secrets to your GitHub repo:
+            <code>BURNBADGE_BASE_URL</code>,
+            <code>BURNBADGE_BADGE_TOKEN</code>,
+            <code>BURNBADGE_USAGE_TOKEN</code>,
+            <code>OPENROUTER_API_KEY</code> (or your provider key)
+          </li>
+          <li>Create <code>.github/workflows/usage.yml</code> with the workflow below</li>
+          <li>Push to <code>main</code> — the badge will update automatically</li>
+        </ol>
+
+        <div class="workflow-header">
+          <h3>GitHub Actions Workflow</h3>
+          <button class="btn-secondary copy-btn" id="copy-workflow-btn">Copy YAML</button>
+        </div>
+        <pre id="workflow-yaml"></pre>
+      </div>
+
+      <!-- Manage Tokens -->
+      <div class="card">
+        <h2>Manage Tokens</h2>
+        <div class="manage-actions">
+          <button class="btn-secondary" id="rotate-btn">Rotate Tokens</button>
+          <button class="btn-danger" id="revoke-btn">Revoke All</button>
+        </div>
+        <div id="manage-status" class="success hidden"></div>
+        <div id="manage-error" class="error hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = window.location.origin;
+
+    const $ = (id) => document.getElementById(id);
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      });
+    }
+
+    document.querySelectorAll('.copy-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.target || btn.id.replace('copy-', '').replace('-btn', '');
+        const el = $(target);
+        if (el) copyText(el.textContent);
+      });
+    });
+
+    $('create-btn').addEventListener('click', async () => {
+      const btn = $('create-btn');
+      const error = $('create-error');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      error.classList.add('hidden');
+
+      try {
+        const provider = $('provider-select').value;
+        const res = await fetch(`${BASE_URL}/api/projects`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to create project');
+        }
+
+        const data = await res.json();
+        showDashboard(data);
+      } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Project';
+      }
+    });
+
+    function showDashboard(data) {
+      $('create-card').classList.add('hidden');
+      $('dashboard').classList.remove('hidden');
+
+      $('badge-token').textContent = data.badgeToken;
+      $('usage-token').textContent = data.usageToken;
+
+      const badgeUrl = `${BASE_URL}/api/shields/${data.badgeToken}/image?logo=${data.provider || 'openrouter'}`;
+      $('badge-img').src = badgeUrl;
+
+      const markdown = `![${data.provider || 'ai'} spend](${badgeUrl})`;
+      $('badge-markdown').textContent = markdown;
+
+      const provider = data.provider || 'openrouter';
+      const apiKeyEnv = provider === 'openrouter' ? 'OPENROUTER_API_KEY' :
+                        provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY';
+
+      $('workflow-yaml').textContent = generateWorkflow(provider, apiKeyEnv);
+
+      // Store tokens for manage actions
+      window._badgeToken = data.badgeToken;
+      window._usageToken = data.usageToken;
+    }
+
+    function generateWorkflow(provider, apiKeyEnv) {
+      return `name: AI Usage Badge
+
+on:
+  schedule:
+    - cron: '0 0 */2 * *'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days to sync and show in the badge'
+        required: false
+        default: '7'
+
+jobs:
+  sync-usage:
+    runs-on: ubuntu-latest
+    name: Sync usage to burnbadge
+    steps:
+      - name: Push ${provider} usage to burnbadge
+        id: sync
+        run: |
+          DAYS="\${{ github.event.inputs.days || '7' }}"
+
+          ACTIVITY_RESPONSE=\$(curl -fsS \\
+            -H "Authorization: Bearer \${${apiKeyEnv}}" \\
+            -H "Accept: application/json" \\
+            https://${provider === 'openrouter' ? 'openrouter.ai/api/v1/activity' : provider === 'anthropic' ? 'api.anthropic.com/v1/messages' : 'api.openai.com/v1/usage'})
+
+          TODAY=\$(date -u +%F)
+          START_DATE=\$(python -c "from datetime import date, timedelta; print((date.today() - timedelta(days=\${DAYS}-1)).isoformat())")
+
+          PAYLOAD=\$(jq -n \\
+            --argjson activity "\$ACTIVITY_RESPONSE" \\
+            --arg provider "${provider}" \\
+            --arg start "\$START_DATE" \\
+            --arg end "\$TODAY" '
+              def round4:
+                ((. * 10000) | round) / 10000;
+              {
+                provider: \$provider,
+                usage: (
+                  (\$activity.data // [])
+                  | map(select(.date != null))
+                  | map({
+                      date: (.date[0:10]),
+                      model: (.model // "unknown"),
+                      cost: (((.usage // 0) + (.byok_usage_inference // 0)) | round4)
+                    })
+                  | map(select(.date >= \$start and .date <= \$end))
+                  | group_by(.date)
+                  | map({
+                      date: .[0].date,
+                      cost: (map(.cost) | add | round4),
+                      breakdown: (
+                        group_by(.model)
+                        | map({
+                            model: .[0].model,
+                            cost: (map(.cost) | add | round4)
+                          })
+                        | map(select(.cost > 0))
+                      )
+                    })
+                )
+              }
+            ')
+
+          curl -fsS -X POST "\${BURNBADGE_BASE_URL}/api/usage/\${BURNBADGE_USAGE_TOKEN}" \\
+            -H "Content-Type: application/json" \\
+            -d "\$PAYLOAD"
+
+          IMAGE_URL="\${BURNBADGE_BASE_URL}/api/shields/\${BURNBADGE_BADGE_TOKEN}/image?days=\${DAYS}&logo=${provider}"
+          MARKDOWN="![${provider} spend](\${IMAGE_URL})"
+
+          echo "image_url=\${IMAGE_URL}" >> "\$GITHUB_OUTPUT"
+          echo "markdown=\${MARKDOWN}" >> "\$GITHUB_OUTPUT"
+
+          echo "Badge: \${IMAGE_URL}"
+          echo "Markdown: \${MARKDOWN}"
+        env:
+          ${apiKeyEnv}: \${{ secrets.${apiKeyEnv} }}
+          BURNBADGE_BASE_URL: \${{ secrets.BURNBADGE_BASE_URL }}
+          BURNBADGE_USAGE_TOKEN: \${{ secrets.BURNBADGE_USAGE_TOKEN }}
+          BURNBADGE_BADGE_TOKEN: \${{ secrets.BURNBADGE_BADGE_TOKEN }}
+
+      - name: Update job summary
+        run: |
+          echo "## AI Usage" >> \$GITHUB_STEP_SUMMARY
+          echo "" >> \$GITHUB_STEP_SUMMARY
+          echo "\${{ steps.sync.outputs.markdown }}" >> \$GITHUB_STEP_SUMMARY
+          echo "" >> \$GITHUB_STEP_SUMMARY
+          echo "*Data synced from your repository workflow to burnbadge*" >> \$GITHUB_STEP_SUMMARY`;
+    }
+
+    $('copy-workflow-btn').addEventListener('click', () => {
+      copyText($('workflow-yaml').textContent);
+    });
+
+    $('rotate-btn').addEventListener('click', async () => {
+      const status = $('manage-status');
+      const error = $('manage-error');
+      status.classList.add('hidden');
+      error.classList.add('hidden');
+
+      try {
+        const res = await fetch(`${BASE_URL}/api/tokens/${window._usageToken}/rotate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ badgeToken: true, usageToken: true }),
+        });
+
+        if (!res.ok) throw new Error('Rotation failed');
+
+        const data = await res.json();
+        window._badgeToken = data.badgeToken;
+        window._usageToken = data.usageToken;
+
+        $('badge-token').textContent = data.badgeToken;
+        $('usage-token').textContent = data.usageToken;
+
+        const badgeUrl = `${BASE_URL}/api/shields/${data.badgeToken}/image`;
+        $('badge-img').src = badgeUrl;
+        $('badge-markdown').textContent = `![ai spend](${badgeUrl})`;
+
+        status.textContent = 'Tokens rotated successfully';
+        status.classList.remove('hidden');
+      } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove('hidden');
+      }
+    });
+
+    $('revoke-btn').addEventListener('click', async () => {
+      if (!confirm('This will permanently revoke all tokens. Continue?')) return;
+
+      const status = $('manage-status');
+      const error = $('manage-error');
+      status.classList.add('hidden');
+      error.classList.add('hidden');
+
+      try {
+        const res = await fetch(`${BASE_URL}/api/tokens/${window._usageToken}/revoke`, {
+          method: 'POST',
+        });
+
+        if (!res.ok) throw new Error('Revocation failed');
+
+        status.textContent = 'All tokens revoked';
+        status.classList.remove('hidden');
+
+        setTimeout(() => {
+          location.reload();
+        }, 2000);
+      } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
