@@ -51,6 +51,22 @@
       font-size: 0.95rem;
     }
 
+    .disclaimer {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .disclaimer strong {
+      color: var(--green);
+    }
+
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -288,6 +304,10 @@
       <h1>🔥 Burnbadge</h1>
       <p>AI spend badges for your GitHub README</p>
     </header>
+
+    <div class="disclaimer">
+      <strong>Privacy first:</strong> Burnbadge never stores your provider API keys. Your keys stay in your own GitHub repository secrets. We only store usage snapshots you push to us and the tokens that identify your project.
+    </div>
 
     <!-- Create Project -->
     <div id="create-card" class="card">
