@@ -10,5 +10,15 @@ ENVIRONMENT = "production"
 binding = "BURNBADGE_KV"
 id = "e3aad51bf51c4ab3a91aa1a25f6a5e83"
 
+[[ratelimits]]
+name = "PROJECT_CREATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+[[ratelimits]]
+name = "GENERAL_LIMITER"
+namespace_id = "1002"
+simple = { limit = 100, period = 60 }
+
 [assets]
 directory = "public"

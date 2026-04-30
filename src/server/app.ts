@@ -80,6 +80,7 @@ export interface AppOptions {
   storage?: TokenStorage;
   defaultBaseUrl?: string;
   kvStorage?: TokenStorage;
+  setupRateLimiting?: (app: Hono<AppBindings>) => void;
 }
 
 export interface AppBindings extends Env {
@@ -349,6 +350,10 @@ export function createApp(options: AppOptions = {}) {
     }
     return fallbackStorage;
   };
+
+  if (options.setupRateLimiting) {
+    options.setupRateLimiting(app);
+  }
 
   app.use('/api/*', bodyLimit({
     maxSize: MAX_REQUEST_BODY_BYTES,

@@ -30,6 +30,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "hono": "^4.12.9",
+    "hono-rate-limiter": "^0.5.3",
     "zod": "^4.3.6"
   }
 }
