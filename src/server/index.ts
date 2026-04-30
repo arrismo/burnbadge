@@ -1,11 +1,13 @@
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { Hono } from 'hono';
 
 import { createApp } from './app.js';
 import { rateLimiter } from 'hono-rate-limiter';
 
 const port = Number.parseInt(process.env.PORT ?? '', 10) || 8787;
 
-const app = createApp({
+const apiApp = createApp({
   setupRateLimiting: (app) => {
     const keyGen = (c: { req: { header: (name: string) => string | undefined } }) =>
       c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? '127.0.0.1';
@@ -28,9 +30,23 @@ const app = createApp({
   },
 });
 
-console.log(`burnbadge API listening on http://localhost:${port}`);
+const staticApp = new Hono();
+const serveDocs = serveStatic({ root: 'website/build', index: 'index.html' });
+
+staticApp.use('*', async (c, next) => {
+  if (c.req.path.startsWith('/api/')) {
+    await next();
+    return;
+  }
+
+  await serveDocs(c, next);
+});
+
+staticApp.route('/', apiApp);
+
+console.log(`burnbadge listening on http://localhost:${port}`);
 
 serve({
-  fetch: app.fetch,
+  fetch: staticApp.fetch,
   port,
 });

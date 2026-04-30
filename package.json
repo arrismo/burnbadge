@@ -4,24 +4,34 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build:server && npm run build:site",
+    "build:server": "tsc -p tsconfig.json",
+    "build:site": "docusaurus build website",
+    "postinstall": "patch-package",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run",
     "lint": "eslint .",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "docs:dev": "docusaurus start website",
+    "deploy": "npm run build && wrangler deploy",
     "start": "node dist/server/index.js"
   },
   "engines": {
     "node": ">=20.10.0"
   },
+  "overrides": {
+    "webpack": "5.95.0"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260414.1",
+    "@docusaurus/core": "^3.10.0",
+    "@docusaurus/preset-classic": "^3.10.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "eslint": "^10.1.0",
+    "patch-package": "^8.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.1",
@@ -29,8 +39,11 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
+    "clsx": "^2.1.1",
     "hono": "^4.12.9",
     "hono-rate-limiter": "^0.5.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "zod": "^4.3.6"
   }
 }

@@ -1,5 +1,7 @@
 node_modules
 dist
+website/build
+website/.docusaurus
 .DS_Store
 coverage
 *.log

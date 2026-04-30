@@ -12,7 +12,7 @@ const tsRecommended = tsPlugin.configs['flat/recommended'];
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: ['dist/**', 'node_modules/**', 'website/build/**', 'website/.docusaurus/**'],
   },
   {
     ...js.configs.recommended,
