@@ -1,6 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import type { Env } from 'hono';
@@ -19,6 +20,11 @@ const CACHE_HEADER = 's-maxage=3600';
 const providerIds = ['anthropic', 'openai', 'openrouter', 'mock'] as const satisfies
   readonly ProviderId[];
 
+const MAX_REQUEST_BODY_BYTES = 64 * 1024;
+const MAX_USAGE_DAYS = 366;
+const MAX_BREAKDOWN_ITEMS = 100;
+const MAX_MODEL_LENGTH = 128;
+
 const createProjectSchema = z.object({
   provider: z.enum(providerIds).optional(),
 });
@@ -29,16 +35,20 @@ const dailyUsageSchema = z.object({
   breakdown: z
     .array(
       z.object({
-        model: z.string().min(1, 'model is required'),
+        model: z.string().min(1, 'model is required').max(MAX_MODEL_LENGTH),
         cost: z.number().finite().nonnegative(),
       }),
     )
+    .max(MAX_BREAKDOWN_ITEMS, `breakdown must include at most ${MAX_BREAKDOWN_ITEMS} items`)
     .optional(),
 });
 
 const ingestUsageSchema = z.object({
   provider: z.enum(providerIds).optional(),
-  usage: z.array(dailyUsageSchema).min(1, 'usage must include at least one daily entry'),
+  usage: z
+    .array(dailyUsageSchema)
+    .min(1, 'usage must include at least one daily entry')
+    .max(MAX_USAGE_DAYS, `usage must include at most ${MAX_USAGE_DAYS} daily entries`),
 });
 
 const rotateTokensSchema = z
@@ -136,15 +146,26 @@ function getRecordTokens(record: UserRecord): string[] {
 }
 
 function assertBadgeAccess(record: UserRecord, token: string): void {
-  if (getBadgeToken(record) !== token) {
+  if (!safeEqual(getBadgeToken(record), token)) {
     throw new HTTPException(404, { message: 'Unknown token' });
   }
 }
 
 function assertUsageAccess(record: UserRecord, token: string): void {
-  if (getUsageToken(record) !== token) {
+  if (!safeEqual(getUsageToken(record), token)) {
     throw new HTTPException(404, { message: 'Unknown token' });
   }
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return timingSafeEqual(left, right);
 }
 
 function normalizeUsageWindow(usage: DailyUsage[]): DailyUsage[] {
@@ -174,7 +195,15 @@ function filterUsageWindow(usage: DailyUsage[] | undefined, days?: number): Dail
 }
 
 async function parseJsonBody(c: { req: { json: () => Promise<unknown> } }): Promise<unknown> {
-  return c.req.json().catch(() => {
+  return c.req.json().catch((error: unknown) => {
+    if (error instanceof HTTPException) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === 'BodyLimitError') {
+      throw new HTTPException(413, { message: 'Payload Too Large' });
+    }
+
     throw new HTTPException(400, { message: 'Invalid JSON body' });
   });
 }
@@ -320,6 +349,11 @@ export function createApp(options: AppOptions = {}) {
     }
     return fallbackStorage;
   };
+
+  app.use('/api/*', bodyLimit({
+    maxSize: MAX_REQUEST_BODY_BYTES,
+    onError: (c) => c.json({ error: 'Payload Too Large' }, 413),
+  }));
 
   app.use('*', cors());
 

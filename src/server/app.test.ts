@@ -256,6 +256,85 @@ describe('createApp push usage model', () => {
     expect(await badgeResponse.json()).toMatchObject({ message: '$3.75' });
   });
 
+  it('rejects usage ingestion with more than 366 daily entries', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, undefined, usageToken, []));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const usage = Array.from({ length: 367 }, (_, index) => ({
+      date: `2026-04-${String((index % 30) + 1).padStart(2, '0')}`,
+      cost: 1,
+    }));
+
+    const response = await app.request(`/api/usage/${usageToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usage }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: expect.stringContaining('at most 366 daily entries'),
+    });
+  });
+
+  it('rejects usage ingestion with more than 100 breakdown items', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, undefined, usageToken, []));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const breakdown = Array.from({ length: 101 }, (_, index) => ({
+      model: `model-${index}`,
+      cost: 1,
+    }));
+
+    const response = await app.request(`/api/usage/${usageToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        usage: [{ date: '2026-04-21', cost: 101, breakdown }],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: expect.stringContaining('at most 100 items'),
+    });
+  });
+
+  it('rejects payloads larger than 64KB', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, undefined, usageToken, []));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+
+    const oversizedModel = 'm'.repeat(70_000);
+    const response = await app.request(`/api/usage/${usageToken}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        usage: [{ date: '2026-04-21', cost: 1, breakdown: [{ model: oversizedModel, cost: 1 }] }],
+      }),
+    });
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({ error: 'Payload Too Large' });
+  });
+
   it('rejects usage ingestion from the public badge token', async () => {
     const badgeToken = 'badge-public';
     const usageToken = 'usage-private';
