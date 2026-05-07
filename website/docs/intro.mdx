@@ -2,46 +2,282 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Getting Started with Burnbadge
 
-Let's discover **Docusaurus in less than 5 minutes**.
+Learn how to track your AI API spending with **Burnbadge** using GitHub Actions.
 
-## Getting Started
+## What is Burnbadge?
 
-Get started by **creating a new site**.
+Burnbadge is a lightweight API that helps you:
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+- **Track AI spending** across providers like Anthropic, OpenAI, and OpenRouter
+- **Generate beautiful badges** for your README files and dashboards
+- **Create spending charts** to visualize your usage over time
+- **Monitor daily breakdowns** by model and provider
 
-### What you'll need
+## Architecture
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+Burnbadge uses a **push-based model** — your GitHub Actions workflow fetches usage directly from your AI provider and pushes it to Burnbadge. Burnbadge never stores your provider API keys.
 
-## Generate a new site
-
-Generate a new Docusaurus site using the **classic template**.
-
-The classic template will automatically be added to your project after you run the command:
-
-```bash
-npm init docusaurus@latest my-website classic
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Your GitHub    │     │                  │     │  AI Provider    │
+│  Repository     │────▶│   Burnbadge API  │◀────│  (OpenRouter/   │
+│  (workflow)     │     │                  │     │   Anthropic)    │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+## Quick Start
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+### 1. Create a Burnbadge Project
 
-## Start your site
+#### Option A: Web UI (Easiest)
 
-Run the development server:
+Visit the **[Create Project](/create-project)** page, select your AI provider, and click **Create Project**. Your tokens will be generated instantly.
+
+#### Option B: API (For Automation)
+
+Send a POST request to create a new project:
 
 ```bash
-cd my-website
-npm run start
+curl -X POST https://burnbadge.mikaelmoise00.workers.dev/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "openrouter"}'
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+You'll receive:
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+```json
+{
+  "token": "your-badge-token",
+  "badgeToken": "your-badge-token",
+  "usageToken": "your-usage-token",
+  "badgeUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/badge/your-badge-token",
+  "chartUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-usage-token",
+  "usageUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/usage/your-usage-token"
+}
+```
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+:::tip Save your tokens
+
+- `badgeToken` is **public** — safe to share in READMEs
+- `usageToken` is **private** — keep it secret, used for pushing data
+
+:::
+
+### 2. Add GitHub Secrets
+
+Go to your repository **Settings → Secrets and variables → Actions** and add:
+
+| Secret | Value |
+|--------|-------|
+| `BURNBADGE_BASE_URL` | `https://burnbadge.mikaelmoise00.workers.dev` |
+| `BURNBADGE_BADGE_TOKEN` | Your public `badgeToken` |
+| `BURNBADGE_USAGE_TOKEN` | Your private `usageToken` |
+| `OPENROUTER_API_KEY` | Your OpenRouter API key |
+
+### 3. Add the GitHub Actions Workflow
+
+Create `.github/workflows/burnbadge.yml` in your repository:
+
+```yaml
+name: AI Usage Badge
+
+on:
+  schedule:
+    - cron: '0 0 */2 * *'  # Every 2 days
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days to sync'
+        required: false
+        default: '7'
+
+jobs:
+  sync-usage:
+    runs-on: ubuntu-latest
+    name: Sync usage to burnbadge
+    steps:
+      - name: Push OpenRouter usage to burnbadge
+        id: sync
+        run: |
+          DAYS="${{ github.event.inputs.days || '7' }}"
+
+          # Fetch usage from OpenRouter
+          ACTIVITY_RESPONSE=$(curl -fsS \
+            -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
+            -H "Accept: application/json" \
+            https://openrouter.ai/api/v1/activity)
+
+          TODAY=$(date -u +%F)
+          START_DATE=$(python -c "from datetime import date, timedelta; print((date.today() - timedelta(days=${DAYS}-1)).isoformat())")
+
+          # Transform and push to burnbadge
+          PAYLOAD=$(jq -n \
+            --argjson activity "$ACTIVITY_RESPONSE" \
+            --arg provider "openrouter" \
+            --arg start "$START_DATE" \
+            --arg end "$TODAY" '
+              def round4:
+                ((. * 10000) | round) / 10000;
+              {
+                provider: $provider,
+                usage: (
+                  ($activity.data // [])
+                  | map(select(.date != null))
+                  | map({
+                      date: (.date[0:10]),
+                      model: (.model // "unknown"),
+                      cost: (((.usage // 0) + (.byok_usage_inference // 0)) | round4)
+                    })
+                  | map(select(.date >= $start and .date <= $end))
+                  | group_by(.date)
+                  | map({
+                      date: .[0].date,
+                      cost: (map(.cost) | add | round4),
+                      breakdown: (
+                        group_by(.model)
+                        | map({
+                            model: .[0].model,
+                            cost: (map(.cost) | add | round4)
+                          })
+                        | map(select(.cost > 0))
+                      )
+                    })
+                )
+              }
+            ')
+
+          curl -fsS -X POST "${BURNBADGE_BASE_URL}/api/usage/${BURNBADGE_USAGE_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
+
+          IMAGE_URL="${BURNBADGE_BASE_URL}/api/shields/${BURNBADGE_BADGE_TOKEN}/image?days=${DAYS}"
+          echo "Badge: ${IMAGE_URL}"
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          BURNBADGE_BASE_URL: ${{ secrets.BURNBADGE_BASE_URL }}
+          BURNBADGE_USAGE_TOKEN: ${{ secrets.BURNBADGE_USAGE_TOKEN }}
+          BURNBADGE_BADGE_TOKEN: ${{ secrets.BURNBADGE_BADGE_TOKEN }}
+```
+
+:::info The workflow runs every 2 days
+
+You can also trigger it manually from the **Actions** tab.
+
+:::
+
+### 4. Add the Badge to Your README
+
+Get your badge markdown:
+
+```bash
+curl https://burnbadge.mikaelmoise00.workers.dev/api/shields/your-badge-token
+```
+
+Copy the `markdown` field and paste it into your README:
+
+```markdown
+![OpenRouter spend](https://img.shields.io/endpoint?url=https://burnbadge.mikaelmoise00.workers.dev/api/badge/your-badge-token)
+```
+
+Or use the direct image redirect:
+
+```markdown
+![OpenRouter spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/your-badge-token/image?days=30)
+```
+
+### 5. View Your Chart
+
+Visit your chart URL:
+
+```
+https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-usage-token
+```
+
+Or embed it:
+
+```markdown
+![Spending Chart](https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-usage-token?days=30)
+```
+
+## Supported Providers
+
+| Provider | Logo Auto-Added |
+|----------|----------------|
+| `anthropic` | Yes |
+| `openai` | No |
+| `openrouter` | Yes |
+| `mock` | No (for testing) |
+
+## API Endpoints
+
+### Public Endpoints (badge token)
+
+- `GET /api/badge/:token` — Get badge data as JSON
+- `GET /api/shields/:token` — Get Shields.io integration data
+- `GET /api/shields/:token/image` — Redirect to Shields.io image
+
+### Private Endpoints (usage token)
+
+- `POST /api/usage/:token` — Push usage data
+- `GET /api/usage/:token` — Get usage data
+- `GET /api/chart/:token` — Get SVG spending chart
+- `POST /api/tokens/:token/rotate` — Rotate tokens
+- `POST /api/tokens/:token/revoke` — Revoke all tokens
+
+## Query Parameters
+
+### Time Windows
+
+Add `?days=N` to limit data to the last N days:
+
+```
+/api/badge/your-badge-token?days=7
+/api/chart/your-usage-token?days=30
+/api/usage/your-usage-token?days=90
+```
+
+### Badge Customization
+
+Customize your badge appearance:
+
+```
+/api/shields/your-badge-token?label=AI%20Spend&color=red&style=flat-square
+```
+
+Supported parameters:
+- `label` — Custom badge label
+- `color` — Badge color (e.g., `red`, `blue`, `green`)
+- `style` — Shields.io style (`flat`, `flat-square`, `plastic`, `for-the-badge`)
+- `logo` — Custom logo (overrides provider logo)
+
+## Token Management
+
+### Rotate Tokens
+
+If a token is compromised, rotate it:
+
+```bash
+curl -X POST https://burnbadge.mikaelmoise00.workers.dev/api/tokens/your-usage-token/rotate \
+  -H "Content-Type: application/json" \
+  -d '{"badgeToken": true, "usageToken": true}'
+```
+
+### Revoke Tokens
+
+To permanently delete a project and all its data:
+
+```bash
+curl -X POST https://burnbadge.mikaelmoise00.workers.dev/api/tokens/your-usage-token/revoke
+```
+
+## Limits
+
+- Maximum **366 days** of usage data per push
+- Maximum **100 breakdown items** per day
+- Maximum request body size: **64 KB**
+
+---
+
+Built with ❤️ using Burnbadge

@@ -6,13 +6,13 @@
   "scripts": {
     "build": "npm run build:server && npm run build:site",
     "build:server": "tsc -p tsconfig.json",
-    "build:site": "docusaurus build website",
+    "build:site": "cd website && npm run build",
     "postinstall": "patch-package",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run",
     "lint": "eslint .",
     "dev": "wrangler dev",
-    "docs:dev": "docusaurus start website",
+    "docs:dev": "cd website && npm run start",
     "deploy": "npm run build && wrangler deploy",
     "start": "node dist/server/index.js"
   },
