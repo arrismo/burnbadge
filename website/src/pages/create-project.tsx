@@ -16,6 +16,7 @@ const PROVIDERS = [
   { value: 'openrouter', label: 'OpenRouter', logo: 'openrouter' },
   { value: 'anthropic', label: 'Anthropic', logo: 'anthropic' },
   { value: 'openai', label: 'OpenAI', logo: 'openai' },
+  { value: 'opencode', label: 'OpenCode', logo: '' },
   { value: 'mock', label: 'Mock (for testing)', logo: '' },
 ] as const;
 
@@ -32,7 +33,7 @@ export default function CreateProject(): React.ReactNode {
     setResult(null);
 
     try {
-      const response = await fetch('https://burnbadge.mikaelmoise00.workers.dev/api/projects', {
+      const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider }),

@@ -39,7 +39,11 @@ staticApp.use('*', async (c, next) => {
     return;
   }
 
-  await serveDocs(c, next);
+  const response = await serveDocs(c, next);
+  if (response) {
+    return response;
+  }
+  await next();
 });
 
 staticApp.route('/', apiApp);

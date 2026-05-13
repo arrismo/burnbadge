@@ -17,7 +17,7 @@ import {
 
 const CACHE_HEADER = 's-maxage=3600';
 
-const providerIds = ['anthropic', 'openai', 'openrouter', 'mock'] as const satisfies
+const providerIds = ['anthropic', 'openai', 'openrouter', 'opencode', 'mock'] as const satisfies
   readonly ProviderId[];
 
 const MAX_REQUEST_BODY_BYTES = 64 * 1024;
@@ -262,6 +262,7 @@ const SHIELDS_FORWARD_KEYS = [
 
 const DEFAULT_PROVIDER_LOGOS: Partial<Record<ProviderId, string>> = {
   anthropic: 'anthropic',
+  openai: 'openai',
   openrouter: 'openrouter',
 };
 

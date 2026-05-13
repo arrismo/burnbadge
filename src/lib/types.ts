@@ -1,4 +1,4 @@
-export type ProviderId = 'anthropic' | 'openai' | 'openrouter' | 'mock';
+export type ProviderId = 'anthropic' | 'openai' | 'openrouter' | 'opencode' | 'mock';
 
 export interface DailyUsageBreakdown {
   model: string;

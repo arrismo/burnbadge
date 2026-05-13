@@ -20,6 +20,7 @@ const PROVIDERS = [
   { value: 'openrouter', label: 'OpenRouter' },
   { value: 'anthropic', label: 'Anthropic' },
   { value: 'openai', label: 'OpenAI' },
+  { value: 'opencode', label: 'OpenCode' },
   { value: 'mock', label: 'Mock (for testing)' },
 ] as const;
 
@@ -35,7 +36,7 @@ function CreateProjectForm() {
     setError(null);
     setResult(null);
     try {
-      const response = await fetch('https://burnbadge.mikaelmoise00.workers.dev/api/projects', {
+      const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({provider}),
