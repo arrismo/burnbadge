@@ -10,7 +10,11 @@ type FeatureItem = {
 };
 
 const ShieldIcon = () => (
-  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.featureIcon}>
+  <svg
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={styles.featureIcon}>
     <path
       d="M24 4L8 10v14c0 9.4 6.8 18.2 16 20 9.2-1.8 16-10.6 16-20V10L24 4z"
       fill="rgba(229,57,53,0.15)"
@@ -29,22 +33,57 @@ const ShieldIcon = () => (
 );
 
 const BadgeIcon = () => (
-  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.featureIcon}>
-    <rect x="6" y="16" width="36" height="16" rx="4" fill="rgba(229,57,53,0.15)" stroke="#e53935" strokeWidth="2" />
-    <rect x="6" y="16" width="14" height="16" rx="4" fill="rgba(229,57,53,0.3)" />
-    <line x1="24" y1="20" x2="38" y2="20" stroke="#e53935" strokeWidth="2" strokeLinecap="round" />
-    <line x1="24" y1="28" x2="34" y2="28" stroke="#e53935" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+  <svg
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={styles.featureIcon}>
+    <rect
+      x="6" y="16" width="36" height="16" rx="4"
+      fill="rgba(229,57,53,0.15)" stroke="#e53935" strokeWidth="2"
+    />
+    <rect
+      x="6" y="16" width="14" height="16" rx="4"
+      fill="rgba(229,57,53,0.3)"
+    />
+    <line
+      x1="24" y1="20" x2="38" y2="20"
+      stroke="#e53935" strokeWidth="2" strokeLinecap="round"
+    />
+    <line
+      x1="24" y1="28" x2="34" y2="28"
+      stroke="#e53935" strokeWidth="2" strokeLinecap="round" opacity="0.5"
+    />
     <circle cx="13" cy="24" r="3" fill="#e53935" />
   </svg>
 );
 
 const ChartIcon = () => (
-  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.featureIcon}>
-    <rect x="6" y="30" width="6" height="12" rx="2" fill="rgba(229,57,53,0.4)" stroke="#e53935" strokeWidth="1.5" />
-    <rect x="15" y="22" width="6" height="20" rx="2" fill="rgba(229,57,53,0.55)" stroke="#e53935" strokeWidth="1.5" />
-    <rect x="24" y="14" width="6" height="28" rx="2" fill="rgba(229,57,53,0.7)" stroke="#e53935" strokeWidth="1.5" />
-    <rect x="33" y="8" width="6" height="34" rx="2" fill="#e53935" stroke="#e53935" strokeWidth="1.5" />
-    <line x1="4" y1="42" x2="44" y2="42" stroke="#e53935" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+  <svg
+    viewBox="0 0 48 48"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={styles.featureIcon}>
+    <rect
+      x="6" y="30" width="6" height="12" rx="2"
+      fill="rgba(229,57,53,0.4)" stroke="#e53935" strokeWidth="1.5"
+    />
+    <rect
+      x="15" y="22" width="6" height="20" rx="2"
+      fill="rgba(229,57,53,0.55)" stroke="#e53935" strokeWidth="1.5"
+    />
+    <rect
+      x="24" y="14" width="6" height="28" rx="2"
+      fill="rgba(229,57,53,0.7)" stroke="#e53935" strokeWidth="1.5"
+    />
+    <rect
+      x="33" y="8" width="6" height="34" rx="2"
+      fill="#e53935" stroke="#e53935" strokeWidth="1.5"
+    />
+    <line
+      x1="4" y1="42" x2="44" y2="42"
+      stroke="#e53935" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"
+    />
   </svg>
 );
 

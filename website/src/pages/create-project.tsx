@@ -174,7 +174,7 @@ export default function CreateProject(): React.ReactNode {
                     <li>
                       <strong>Add the badge</strong> to your README:
                       <pre className={styles.codeBlock}>
-{`![${provider} spend](${result.badgeUrl})`}
+                        {`![${provider} spend](${result.badgeUrl})`}
                       </pre>
                     </li>
                   </ol>

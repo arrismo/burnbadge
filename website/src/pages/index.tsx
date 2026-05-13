@@ -104,7 +104,9 @@ function CreateProjectForm() {
 
           <div className={styles.tokens}>
             <div className={styles.tokenRow}>
-              <span className={styles.tokenLabel}>Badge Token <span className={styles.tokenHint}>(public)</span></span>
+              <span className={styles.tokenLabel}>
+                Badge Token <span className={styles.tokenHint}>(public)</span>
+              </span>
               <code className={styles.tokenValue}>{result.badgeToken}</code>
               <button
                 className="button button--sm button--secondary"
@@ -113,7 +115,9 @@ function CreateProjectForm() {
               </button>
             </div>
             <div className={styles.tokenRow}>
-              <span className={styles.tokenLabel}>Usage Token <span className={styles.tokenHint}>(private)</span></span>
+              <span className={styles.tokenLabel}>
+                Usage Token <span className={styles.tokenHint}>(private)</span>
+              </span>
               <code className={styles.tokenValue}>{result.usageToken}</code>
               <button
                 className="button button--sm button--secondary"
@@ -177,7 +181,12 @@ function HomepageHeader() {
         <div className={styles.heroPreview}>
           <span className={styles.previewLabel}>Live badge example:</span>
           <img
-            src="https://img.shields.io/endpoint?url=https%3A%2F%2Fburnbadge.mikaelmoise00.workers.dev%2Fapi%2Fbadge%2Fd4b1e6f2-7c3a-4b9e-8f1d-2e5a3c6b9d0e&label=AI+Spend+%2830d%29&color=red"
+            src={
+              'https://img.shields.io/endpoint?' +
+              'url=https%3A%2F%2Fburnbadge.mikaelmoise00.workers.dev' +
+              '%2Fapi%2Fbadge%2Fd4b1e6f2-7c3a-4b9e-8f1d-2e5a3c6b9d0e' +
+              '&label=AI+Spend+%2830d%29&color=red'
+            }
             alt="AI spend badge example"
             className={styles.shieldsBadge}
           />
