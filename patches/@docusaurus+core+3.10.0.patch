@@ -1,8 +1,8 @@
 diff --git a/node_modules/@docusaurus/core/lib/ssg/ssgNodeRequire.js b/node_modules/@docusaurus/core/lib/ssg/ssgNodeRequire.js
-index 1db9ec7..1f511fd 100644
+index cfd85db..eafd05e 100644
 --- a/node_modules/@docusaurus/core/lib/ssg/ssgNodeRequire.js
 +++ b/node_modules/@docusaurus/core/lib/ssg/ssgNodeRequire.js
-@@ -22,6 +22,9 @@ function createSSGRequire(serverBundlePath) {
+@@ -23,6 +23,9 @@ function createSSGRequire(serverBundlePath) {
      const realRequire = (0, module_1.createRequire)(serverBundlePath);
      const allRequiredIds = [];
      const ssgRequireFunction = (id) => {
@@ -13,84 +13,10 @@ index 1db9ec7..1f511fd 100644
          allRequiredIds.push(id);
          return module;
 @@ -33,6 +36,7 @@ function createSSGRequire(serverBundlePath) {
+         });
      };
      ssgRequireFunction.resolve = realRequire.resolve;
 +    ssgRequireFunction.resolveWeak = (id) => id;
      ssgRequireFunction.cache = realRequire.cache;
      ssgRequireFunction.extensions = realRequire.extensions;
      ssgRequireFunction.main = realRequire.main;
-
-diff --git a/node_modules/@docusaurus/theme-classic/lib/nprogress.js b/node_modules/@docusaurus/theme-classic/lib/nprogress.js
-index 6717f4a..809af0b 100644
---- a/node_modules/@docusaurus/theme-classic/lib/nprogress.js
-+++ b/node_modules/@docusaurus/theme-classic/lib/nprogress.js
-@@ -5,7 +5,9 @@
-  * LICENSE file in the root directory of this source tree.
-  */
- import nprogress from 'nprogress';
--import './nprogress.css';
-+if (typeof window !== 'undefined') {
-+    void import('./nprogress.css');
-+}
- nprogress.configure({ showSpinner: false });
- const delay = 200;
- const clientModule = {
-
-diff --git a/node_modules/@docusaurus/theme-classic/lib/prism-include-languages.js b/node_modules/@docusaurus/theme-classic/lib/prism-include-languages.js
-index 6fdc0b5..90d9315 100644
---- a/node_modules/@docusaurus/theme-classic/lib/prism-include-languages.js
-+++ b/node_modules/@docusaurus/theme-classic/lib/prism-include-languages.js
-@@ -5,5 +5,47 @@
-  * LICENSE file in the root directory of this source tree.
-  */
- import { Prism } from 'prism-react-renderer';
--import prismIncludeLanguages from '@theme/prism-include-languages';
-+import fs from 'node:fs';
-+import path from 'node:path';
-+
-+function getAdditionalLanguages() {
-+  const candidates = [
-+    path.join(process.cwd(), 'website', '.docusaurus', 'docusaurus.config.mjs'),
-+    path.join(process.cwd(), '.docusaurus', 'docusaurus.config.mjs'),
-+  ];
-+
-+  for (const configPath of candidates) {
-+    if (!fs.existsSync(configPath)) {
-+      continue;
-+    }
-+
-+    const configSource = fs.readFileSync(configPath, 'utf8');
-+    const match = configSource.match(/"additionalLanguages":\s*(\[[^\]]*\])/);
-+
-+    if (!match) {
-+      return [];
-+    }
-+
-+    try {
-+      const additionalLanguages = JSON.parse(match[1]);
-+      return Array.isArray(additionalLanguages) ? additionalLanguages : [];
-+    } catch {
-+      return [];
-+    }
-+  }
-+
-+  return [];
-+}
-+
-+function prismIncludeLanguages(PrismObject) {
-+  const additionalLanguages = getAdditionalLanguages();
-+  const PrismBefore = globalThis.Prism;
-+  globalThis.Prism = PrismObject;
-+  additionalLanguages.forEach((lang) => {
-+    if (lang === 'php') {
-+      require('prismjs/components/prism-markup-templating.js');
-+    }
-+    require(`prismjs/components/prism-${lang}`);
-+  });
-+  delete globalThis.Prism;
-+  if (typeof PrismBefore !== 'undefined') {
-+    globalThis.Prism = PrismObject;
-+  }
-+}
-+
- prismIncludeLanguages(Prism);
