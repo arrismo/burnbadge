@@ -1,4 +1,4 @@
-![openrouter spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/d6a5acc9-bdbd-41fa-ad9c-ef992375581a/image?days=30&logo=openrouter)
+![opencode spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/d6a5acc9-bdbd-41fa-ad9c-ef992375581a/image?days=30&logo=opencode)
 
 # Burnbadge
 
@@ -11,4 +11,4 @@ Track your AI API spending with beautiful badges and charts. Push-based — Burn
 | `anthropic` | Yes |
 | `openai` | Yes |
 | `openrouter` | Yes |
-| `opencode` | No |
+| `opencode` | Yes |
