@@ -2,13 +2,13 @@ name: AI Usage Badge
 
 on:
   schedule:
-    - cron: '0 0 */2 * *'
+    - cron: '0 0 */10 * *'
   workflow_dispatch:
     inputs:
       days:
         description: 'Number of days to sync and show in the badge'
         required: false
-        default: '7'
+        default: '10'
 
 jobs:
   sync-usage:
@@ -18,7 +18,7 @@ jobs:
       - name: Push OpenCode usage to burnbadge
         id: sync
         run: |
-          DAYS="${{ github.event.inputs.days || '7' }}"
+          DAYS="${{ github.event.inputs.days || '10' }}"
 
           ACTIVITY_RESPONSE=$(curl -fsS \
             -H "Authorization: Bearer ${OPENCODE_API_KEY}" \

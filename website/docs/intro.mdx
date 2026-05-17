@@ -85,13 +85,13 @@ name: AI Usage Badge
 
 on:
   schedule:
-    - cron: '0 0 */2 * *'  # Every 2 days
+    - cron: '0 0 */10 * *'  # Every 10 days
   workflow_dispatch:
     inputs:
       days:
         description: 'Number of days to sync'
         required: false
-        default: '7'
+        default: '10'
 
 jobs:
   sync-usage:
@@ -101,7 +101,7 @@ jobs:
       - name: Push OpenRouter usage to burnbadge
         id: sync
         run: |
-          DAYS="${{ github.event.inputs.days || '7' }}"
+          DAYS="${{ github.event.inputs.days || '10' }}"
 
           # Fetch usage from OpenRouter
           ACTIVITY_RESPONSE=$(curl -fsS \
@@ -161,7 +161,7 @@ jobs:
           BURNBADGE_BADGE_TOKEN: ${{ secrets.BURNBADGE_BADGE_TOKEN }}
 ```
 
-:::info The workflow runs every 2 days
+:::info The workflow runs every 10 days
 
 You can also trigger it manually from the **Actions** tab.
 
