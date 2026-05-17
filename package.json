@@ -25,6 +25,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260414.1",
     "@docusaurus/core": "^3.10.0",
+    "@docusaurus/faster": "^3.10.0",
     "@docusaurus/preset-classic": "^3.10.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.5.0",
