@@ -37,7 +37,6 @@ jobs:
             --data-urlencode "start_time=${START_TIME}" \
             --data-urlencode "end_time=${END_TIME}" \
             --data-urlencode "bucket_width=1d" \
-            --data-urlencode "group_by=line_item" \
             --data-urlencode "limit=${DAYS}" \
             https://api.openai.com/v1/organization/costs)
 
