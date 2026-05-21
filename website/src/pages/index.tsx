@@ -4,6 +4,7 @@ import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
+import HomepageFeatures from '../components/HomepageFeatures';
 
 import styles from './index.module.css';
 
@@ -203,6 +204,46 @@ function HomepageHeader() {
   );
 }
 
+function InstallSection() {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    await navigator.clipboard.writeText('curl -fsSL https://burnbadge.mikaelmoise00.workers.dev/install.sh | bash');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <section className={styles.installSection}>
+      <div className="container">
+        <div className={styles.installGrid}>
+          <div className={styles.installStep}>
+            <span className={styles.installNumber}>1</span>
+            <div className={styles.installContent}>
+              <h3>Install</h3>
+              <div className={styles.terminal}>
+                <code>curl -fsSL https://burnbadge.mikaelmoise00.workers.dev/install.sh | bash</code>
+                <button className={styles.copyBtn} onClick={copy}>
+                  {copied ? '✓' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className={styles.installStep}>
+            <span className={styles.installNumber}>2</span>
+            <div className={styles.installContent}>
+              <h3>Configure</h3>
+              <div className={styles.terminal}>
+                <code>burnbadge setup</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
@@ -211,6 +252,8 @@ export default function Home(): ReactNode {
       description="Track your AI API spending with beautiful badges and charts">
       <HomepageHeader />
       <main>
+        <HomepageFeatures />
+        <InstallSection />
         <CreateProjectForm />
       </main>
     </Layout>

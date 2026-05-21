@@ -15,60 +15,72 @@ jobs:
     runs-on: ubuntu-latest
     name: Sync usage to burnbadge
     steps:
-      - name: Push OpenCode usage to burnbadge
+      - name: Push Codex usage to burnbadge
         id: sync
         run: |
           DAYS="${{ github.event.inputs.days || '10' }}"
 
-          ACTIVITY_RESPONSE=$(curl -fsS \
-            -H "Authorization: Bearer ${OPENCODE_API_KEY}" \
-            -H "Accept: application/json" \
-            https://api.opencode.ai/usage)
+          read -r START_TIME END_TIME <<EOF
+          $(python3 - <<PY
+          from datetime import datetime, timedelta, timezone
+          days = int("${DAYS}")
+          end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+          start = end - timedelta(days=days - 1)
+          print(int(start.timestamp()), int((end + timedelta(days=1)).timestamp()))
+          PY
+          )
+          EOF
 
-          TODAY=$(date -u +%F)
-          START_DATE=$(python -c "from datetime import date, timedelta; print((date.today() - timedelta(days=${DAYS}-1)).isoformat())")
+          COSTS_RESPONSE=$(curl -fsS --get \
+            -H "Authorization: Bearer ${OPENAI_ADMIN_KEY}" \
+            -H "Accept: application/json" \
+            --data-urlencode "start_time=${START_TIME}" \
+            --data-urlencode "end_time=${END_TIME}" \
+            --data-urlencode "bucket_width=1d" \
+            --data-urlencode "group_by=line_item" \
+            --data-urlencode "limit=${DAYS}" \
+            https://api.openai.com/v1/organization/costs)
 
           PAYLOAD=$(jq -n \
-            --argjson activity "$ACTIVITY_RESPONSE" \
-            --arg provider "opencode" \
-            --arg start "$START_DATE" \
-            --arg end "$TODAY" '
+            --argjson costs "$COSTS_RESPONSE" \
+            --arg provider "openai" '
               def round4:
                 ((. * 10000) | round) / 10000;
+              def is_codex:
+                ((.line_item // .project_id // "") | ascii_downcase | contains("codex"));
               {
                 provider: $provider,
                 usage: (
-                  ($activity.data // [])
-                  | map(select(.date != null))
+                  ($costs.data // [])
                   | map({
-                      date: (.date[0:10]),
-                      model: (.model // "unknown"),
-                      cost: (((.usage // 0) + (.byok_usage_inference // 0)) | round4)
-                    })
-                  | map(select(.date >= $start and .date <= $end))
-                  | group_by(.date)
-                  | map({
-                      date: .[0].date,
-                      cost: (map(.cost) | add | round4),
+                      date: (.start_time | gmtime | strftime("%Y-%m-%d")),
                       breakdown: (
-                        group_by(.model)
+                        (.results // [])
+                        | map(select(is_codex))
                         | map({
-                            model: .[0].model,
-                            cost: (map(.cost) | add | round4)
+                            model: (.line_item // .project_id // "codex"),
+                            cost: (.amount.value // 0 | round4)
                           })
                         | map(select(.cost > 0))
                       )
                     })
+                  | map(. + { cost: (.breakdown | map(.cost) | add // 0 | round4) })
+                  | map(select(.cost > 0))
                 )
               }
             ')
 
-          curl -fsS -X POST "${BURNBADGE_BASE_URL}/api/usage/${BURNBADGE_USAGE_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
+          USAGE_COUNT=$(jq '.usage | length' <<< "$PAYLOAD")
+          if [ "$USAGE_COUNT" -gt 0 ]; then
+            curl -fsS -X POST "${BURNBADGE_BASE_URL}/api/usage/${BURNBADGE_USAGE_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD"
+          else
+            echo "No Codex costs found for the selected ${DAYS}-day window; skipping push."
+          fi
 
           IMAGE_URL="${BURNBADGE_BASE_URL}/api/shields/${BURNBADGE_BADGE_TOKEN}/image?days=${DAYS}"
-          MARKDOWN="![AI Usage](${IMAGE_URL})"
+          MARKDOWN="![Codex Usage](${IMAGE_URL})"
 
           echo "image_url=${IMAGE_URL}" >> "$GITHUB_OUTPUT"
           echo "markdown=${MARKDOWN}" >> "$GITHUB_OUTPUT"
@@ -76,7 +88,7 @@ jobs:
           echo "Badge: ${IMAGE_URL}"
           echo "Markdown: ${MARKDOWN}"
         env:
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
           BURNBADGE_BASE_URL: ${{ secrets.BURNBADGE_BASE_URL }}
           BURNBADGE_USAGE_TOKEN: ${{ secrets.BURNBADGE_USAGE_TOKEN }}
           BURNBADGE_BADGE_TOKEN: ${{ secrets.BURNBADGE_BADGE_TOKEN }}

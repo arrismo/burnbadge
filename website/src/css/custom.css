@@ -1,93 +1,181 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Global CSS - Hermes-inspired design
+ * Background: #041C1C (dark teal)
+ * Accent: #ffe6cb (cream)
+ * Text: #FFFFFF
  */
 
-/* ── Color tokens ───────────────────────────────────────────── */
 :root {
-  --ifm-color-primary: #e53935;
-  --ifm-color-primary-dark: #c62828;
-  --ifm-color-primary-darker: #b71c1c;
-  --ifm-color-primary-darkest: #8e0000;
-  --ifm-color-primary-light: #ef5350;
-  --ifm-color-primary-lighter: #e57373;
-  --ifm-color-primary-lightest: #ffcdd2;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(229, 57, 53, 0.1);
+  --ifm-color-primary: #ffe6cb;
+  --ifm-color-primary-dark: #e6d0b5;
+  --ifm-color-primary-darker: #ccba9f;
+  --ifm-color-primary-darkest: #b3a48a;
+  --ifm-color-primary-light: #fff0e0;
+  --ifm-color-primary-lighter: #fff5eb;
+  --ifm-color-primary-lightest: #fffaf5;
+  --ifm-code-font-size: 0.875rem;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 230, 203, 0.1);
   --ifm-font-family-base: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --ifm-heading-font-weight: 700;
-  --ifm-navbar-height: 60px;
+  --ifm-navbar-height: 64px;
+  --ifm-background-color: #041C1C;
+  --ifm-background-surface-color: #041C1C;
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #ef5350;
-  --ifm-color-primary-dark: #e53935;
-  --ifm-color-primary-darker: #c62828;
-  --ifm-color-primary-darkest: #b71c1c;
-  --ifm-color-primary-light: #e57373;
-  --ifm-color-primary-lighter: #ef9a9a;
-  --ifm-color-primary-lightest: #ffcdd2;
-  --docusaurus-highlighted-code-line-bg: rgba(239, 83, 80, 0.15);
-  --ifm-background-color: #060606;
-  --ifm-background-surface-color: #0f0f0f;
-  --ifm-navbar-background-color: rgba(6, 6, 6, 0.85);
-  --ifm-footer-background-color: #060606;
+  --ifm-color-primary: #ffe6cb;
+  --ifm-color-primary-dark: #e6d0b5;
+  --ifm-color-primary-darker: #ccba9f;
+  --ifm-color-primary-darkest: #b3a48a;
+  --ifm-color-primary-light: #fff0e0;
+  --ifm-color-primary-lighter: #fff5eb;
+  --ifm-color-primary-lightest: #fffaf5;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 230, 203, 0.1);
+  --ifm-background-color: #041C1C;
+  --ifm-background-surface-color: #041C1C;
+  --ifm-navbar-background-color: rgba(4, 28, 28, 0.95);
+  --ifm-footer-background-color: #041C1C;
 }
 
-/* ── Smooth scrolling ───────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
 }
 
-/* ── Navbar ─────────────────────────────────────────────────── */
-.navbar {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
+body {
+  background: #041C1C;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--ifm-font-family-base);
 }
 
-[data-theme='dark'] .navbar {
-  background: rgba(6, 6, 6, 0.85);
+/* Override Docusaurus default light backgrounds */
+.main-wrapper {
+  background: #041C1C;
+}
+
+/* ── Navbar ─────────────────────────────────────────────────── */
+.navbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(4, 28, 28, 0.95) !important;
+  backdrop-filter: blur(16px);
 }
 
 .navbar__title {
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.05em;
+  font-size: 2.625rem;
+  line-height: 1;
+  color: #FFFFFF;
+}
+
+.navbar__link {
+  font-weight: 500;
+  font-size: 0.9375rem;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.1875rem;
+  text-transform: uppercase;
+  transition: color 0.25s ease;
+}
+
+.navbar__link:hover {
+  color: #FFFFFF;
 }
 
 /* ── Footer ─────────────────────────────────────────────────── */
 .footer {
-  border-top: 1px solid #1a1a1a;
-  background: #060606 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #041C1C !important;
+  padding: 2rem 0;
+}
+
+.footer__title {
+  font-size: 0.9375rem;
+  letter-spacing: 0.1875rem;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.footer__item a {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9375rem;
+  letter-spacing: 0.1875rem;
+  text-transform: uppercase;
+  transition: opacity 0.25s ease;
+}
+
+.footer__item a:hover {
+  opacity: 0.7;
+  color: #FFFFFF;
+}
+
+.footer__copyright {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9375rem;
+  letter-spacing: 0.1875rem;
+  text-transform: uppercase;
 }
 
 /* ── Code blocks ────────────────────────────────────────────── */
 code {
-  border-radius: 4px;
+  font-family: 'Courier Prime', 'Courier New', monospace;
+  font-size: 0.6875rem;
+  background: rgba(4, 28, 28, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.4rem;
+  text-transform: lowercase;
 }
 
-/* ── Doc content tweaks ─────────────────────────────────────── */
+/* ── Doc content ────────────────────────────────────────────── */
 .markdown h1,
 .markdown h2,
 .markdown h3 {
   letter-spacing: -0.02em;
+  text-transform: none;
 }
 
-/* ── Scrollbar (dark) ───────────────────────────────────────── */
-[data-theme='dark'] ::-webkit-scrollbar {
+.markdown p {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-[data-theme='dark'] ::-webkit-scrollbar-track {
-  background: #111;
+::-webkit-scrollbar-track {
+  background: #041C1C;
 }
 
-[data-theme='dark'] ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
 }
 
-[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
-  background: #e53935;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 230, 203, 0.5);
+}
+
+/* ── Links ──────────────────────────────────────────────────── */
+a {
+  color: #ffe6cb;
+  transition: opacity 0.25s ease;
+}
+
+a:hover {
+  opacity: 0.7;
+  text-decoration: none;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+button {
+  font-family: 'Courier Prime', 'Courier New', monospace;
+  cursor: pointer;
+}
+
+/* ── Selection ──────────────────────────────────────────────── */
+::selection {
+  background: rgba(255, 230, 203, 0.2);
+  color: #FFFFFF;
 }
