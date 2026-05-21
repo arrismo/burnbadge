@@ -206,9 +206,11 @@ function HomepageHeader() {
 
 function InstallSection() {
   const [copied, setCopied] = useState(false);
+  const installCommand =
+    'curl -fsSL https://burnbadge.mikaelmoise00.workers.dev/install.sh | bash';
 
   const copy = async () => {
-    await navigator.clipboard.writeText('curl -fsSL https://burnbadge.mikaelmoise00.workers.dev/install.sh | bash');
+    await navigator.clipboard.writeText(installCommand);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -222,7 +224,7 @@ function InstallSection() {
             <div className={styles.installContent}>
               <h3>Install</h3>
               <div className={styles.terminal}>
-                <code>curl -fsSL https://burnbadge.mikaelmoise00.workers.dev/install.sh | bash</code>
+                <code>{installCommand}</code>
                 <button className={styles.copyBtn} onClick={copy}>
                   {copied ? '✓' : 'Copy'}
                 </button>
