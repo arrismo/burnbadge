@@ -2,6 +2,7 @@ node_modules
 dist
 website/build
 website/.docusaurus
+.wrangler/
 .DS_Store
 coverage
 *.log

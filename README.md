@@ -1,5 +1,5 @@
 ![opencode spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/d6a5acc9-bdbd-41fa-ad9c-ef992375581a/image?days=30&logo=opencode)
-![codex spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/195cb64b-c627-4973-bfa0-3585f34108ea/image?days=1&label=codex&logo=openai&v=3)
+![codex spend](https://img.shields.io/endpoint?url=https%3A%2F%2Fburnbadge.mikaelmoise00.workers.dev%2Fapi%2Fbadge%2F195cb64b-c627-4973-bfa0-3585f34108ea%3Fdays%3D1%26label%3Dcodex&logo=openai)
 
 # Burnbadge
 
