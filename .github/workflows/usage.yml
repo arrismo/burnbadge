@@ -47,7 +47,8 @@ jobs:
               def round4:
                 ((. * 10000) | round) / 10000;
               def is_codex:
-                ((.line_item // .project_id // "") | ascii_downcase | contains("codex"));
+                ((.line_item // .project_id // "") | ascii_downcase) as $item
+                | ($item | contains("codex") or contains("cli"));
               {
                 provider: $provider,
                 usage: (
@@ -76,7 +77,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d "$PAYLOAD"
           else
-            echo "No Codex costs found for the selected ${DAYS}-day window; skipping push."
+            echo "No Codex/CLI costs found for the selected ${DAYS}-day window; skipping push."
           fi
 
           IMAGE_URL="${BURNBADGE_BASE_URL}/api/shields/${BURNBADGE_BADGE_TOKEN}/image?days=${DAYS}"
