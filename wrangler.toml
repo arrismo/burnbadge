@@ -1,4 +1,3 @@
-[build]
 name = "burnbadge"
 main = "src/server/cf.ts"
 compatibility_date = "2025-04-14"
