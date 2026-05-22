@@ -36,12 +36,12 @@ Response:
   "badgeToken": "public-badge-token",
   "usageToken": "private-usage-token",
   "badgeUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/badge/public-badge-token",
-  "chartUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/chart/private-usage-token",
+  "chartUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/chart/public-badge-token",
   "usageUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/usage/private-usage-token"
 }
 ```
 
-- `badgeToken` is public and safe for README badges.
+- `badgeToken` is public and safe for README badges and charts.
 - `usageToken` is private and should only be stored locally by Burnbar.
 
 ## 2. Publish usage
@@ -94,8 +94,10 @@ Response:
 }
 ```
 
-## 4. Add the badge to your README
+## 4. Add the badge and chart to your README
 
 ```md
 ![OpenAI spend](https://burnbadge.mikaelmoise00.workers.dev/api/shields/public-badge-token/image?days=30&logo=openai)
+
+![OpenAI spend chart](https://burnbadge.mikaelmoise00.workers.dev/api/chart/public-badge-token?days=30)
 ```

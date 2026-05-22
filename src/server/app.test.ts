@@ -394,7 +394,7 @@ describe('createApp push usage model', () => {
     expect(response.status).toBe(404);
   });
 
-  it('blocks chart reads when only the public badge token is known', async () => {
+  it('serves chart reads from the public badge token', async () => {
     const badgeToken = 'badge-public';
     await storage.save(createRecord(badgeToken, 'mock', 'usage-private'));
 
@@ -404,7 +404,8 @@ describe('createApp push usage model', () => {
     });
     const response = await app.request(`/api/chart/${badgeToken}`);
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('image/svg+xml');
   });
 
   it('returns public status data from the public badge token', async () => {
@@ -483,7 +484,7 @@ describe('createApp push usage model', () => {
 
     expect(body.token).toBe(body.badgeToken);
     expect(body.badgeUrl).toContain(`/api/badge/${body.badgeToken}`);
-    expect(body.chartUrl).toContain(`/api/chart/${body.usageToken}`);
+    expect(body.chartUrl).toContain(`/api/chart/${body.badgeToken}`);
     expect(body.usageUrl).toContain(`/api/usage/${body.usageToken}`);
 
     const statusResponse = await app.request(`/api/status/${body.badgeToken}`);

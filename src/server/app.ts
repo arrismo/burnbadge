@@ -237,7 +237,7 @@ function buildResourceUrls(baseUrl: string, record: UserRecord) {
     badgeToken,
     usageToken,
     badgeUrl: `${base}/api/badge/${badgeToken}`,
-    chartUrl: `${base}/api/chart/${usageToken}`,
+    chartUrl: `${base}/api/chart/${badgeToken}`,
     usageUrl: `${base}/api/usage/${usageToken}`,
   };
 }
@@ -575,7 +575,7 @@ export function createApp(options: AppOptions = {}) {
 
     const storage = getStorage(c);
     const record = await loadRecord(token, storage);
-    assertUsageAccess(record, token);
+    assertBadgeAccess(record, token);
     const usage = filterUsageWindow(record.usage, days);
     const svg = renderUsageChart(usage, record.provider ?? 'Burnbadge');
 

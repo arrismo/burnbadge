@@ -53,7 +53,7 @@ You'll receive:
   "badgeToken": "your-badge-token",
   "usageToken": "your-usage-token",
   "badgeUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/badge/your-badge-token",
-  "chartUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-usage-token",
+  "chartUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-badge-token",
   "usageUrl": "https://burnbadge.mikaelmoise00.workers.dev/api/usage/your-usage-token"
 }
 ```
@@ -192,13 +192,13 @@ Or use the direct image redirect:
 Visit your chart URL:
 
 ```
-https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-usage-token
+https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-badge-token
 ```
 
 Or embed it:
 
 ```markdown
-![Spending Chart](https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-usage-token?days=30)
+![Spending Chart](https://burnbadge.mikaelmoise00.workers.dev/api/chart/your-badge-token?days=30)
 ```
 
 ## Supported Providers
@@ -218,12 +218,12 @@ Or embed it:
 - `GET /api/badge/:token` — Get badge data as JSON
 - `GET /api/shields/:token` — Get Shields.io integration data
 - `GET /api/shields/:token/image` — Redirect to Shields.io image
+- `GET /api/chart/:token` — Get SVG spending chart
 
 ### Private Endpoints (usage token)
 
 - `POST /api/usage/:token` — Push usage data
 - `GET /api/usage/:token` — Get usage data
-- `GET /api/chart/:token` — Get SVG spending chart
 - `POST /api/tokens/:token/rotate` — Rotate tokens
 - `POST /api/tokens/:token/revoke` — Revoke all tokens
 
@@ -235,7 +235,7 @@ Add `?days=N` to limit data to the last N days:
 
 ```
 /api/badge/your-badge-token?days=7
-/api/chart/your-usage-token?days=30
+/api/chart/your-badge-token?days=30
 /api/usage/your-usage-token?days=90
 ```
 
