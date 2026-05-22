@@ -5,6 +5,8 @@
 
 Track your AI API spending with beautiful badges and charts. Push-based — Burnbadge never stores your provider API keys.
 
+Burnbadge is the hosted badge API. Burnbar is the local companion app that can collect usage on your machine and publish normalized daily totals to Burnbadge.
+
 ## Supported Providers
 
 | Provider | Shields Logo |

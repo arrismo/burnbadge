@@ -16,7 +16,10 @@ export interface UserRecord {
   badgeToken?: string;
   usageToken?: string;
   provider?: ProviderId;
+  name?: string;
+  source?: string;
   usage?: DailyUsage[];
+  lastUpdated?: string;
   updatedAt?: string;
   createdAt: string;
 }

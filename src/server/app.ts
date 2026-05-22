@@ -24,9 +24,13 @@ const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 const MAX_USAGE_DAYS = 366;
 const MAX_BREAKDOWN_ITEMS = 100;
 const MAX_MODEL_LENGTH = 128;
+const MAX_PROJECT_NAME_LENGTH = 128;
+const MAX_PROJECT_SOURCE_LENGTH = 64;
 
 const createProjectSchema = z.object({
   provider: z.enum(providerIds).optional(),
+  name: z.string().trim().min(1).max(MAX_PROJECT_NAME_LENGTH).optional(),
+  source: z.string().trim().min(1).max(MAX_PROJECT_SOURCE_LENGTH).optional(),
 });
 
 const dailyUsageSchema = z.object({
@@ -193,6 +197,20 @@ function filterUsageWindow(usage: DailyUsage[] | undefined, days?: number): Dail
     return series;
   }
   return series.slice(-Math.trunc(days));
+}
+
+function sumUsageCost(usage: DailyUsage[]): number {
+  return usage.reduce((sum, entry) => sum + entry.cost, 0);
+}
+
+function todayUtcDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getUsageCostForDate(usage: DailyUsage[], date: string): number {
+  return usage
+    .filter((entry) => entry.date === date)
+    .reduce((sum, entry) => sum + entry.cost, 0);
 }
 
 async function parseJsonBody(c: { req: { json: () => Promise<unknown> } }): Promise<unknown> {
@@ -380,6 +398,8 @@ export function createApp(options: AppOptions = {}) {
       badgeToken,
       usageToken,
       provider: parsed.data.provider,
+      name: parsed.data.name,
+      source: parsed.data.source,
       usage: [],
       createdAt,
       updatedAt: createdAt,
@@ -412,11 +432,13 @@ export function createApp(options: AppOptions = {}) {
     const record = await loadRecord(token, storage);
     assertUsageAccess(record, token);
 
+    const updatedAt = new Date().toISOString();
     const nextRecord: UserRecord = {
       ...record,
       provider: parsed.data.provider ?? record.provider,
       usage: normalizeUsageWindow(parsed.data.usage),
-      updatedAt: new Date().toISOString(),
+      lastUpdated: updatedAt,
+      updatedAt,
     };
 
     await replaceRecordTokens(storage, record, nextRecord);
@@ -424,6 +446,7 @@ export function createApp(options: AppOptions = {}) {
     return c.json({
       provider: nextRecord.provider ?? null,
       usage: nextRecord.usage ?? [],
+      lastUpdated: nextRecord.lastUpdated,
       updatedAt: nextRecord.updatedAt,
     });
   });
@@ -477,8 +500,7 @@ export function createApp(options: AppOptions = {}) {
     const record = await loadRecord(token, storage);
     assertBadgeAccess(record, token);
     const usage = filterUsageWindow(record.usage, days);
-    const total = usage.reduce((sum, entry) => sum + entry.cost, 0);
-    const message = formatCurrencyUSD(total);
+    const message = formatCurrencyUSD(sumUsageCost(usage));
 
     c.header('Cache-Control', CACHE_HEADER);
     return c.json(makeBadgeResponse({ label, provider: record.provider, message, color }));
@@ -497,8 +519,52 @@ export function createApp(options: AppOptions = {}) {
     c.header('Cache-Control', CACHE_HEADER);
     return c.json({
       provider: record.provider ?? null,
+      name: record.name ?? null,
+      source: record.source ?? null,
       usage,
+      lastUpdated: record.lastUpdated ?? null,
       updatedAt: record.updatedAt ?? null,
+    });
+  });
+
+  app.get('/api/status/:token', async (c) => {
+    const token = c.req.param('token');
+    const query = c.req.query();
+    const days = daysSchema.parse(query.days);
+
+    const storage = getStorage(c);
+    const record = await loadRecord(token, storage);
+    assertBadgeAccess(record, token);
+
+    const usage = filterUsageWindow(record.usage, days);
+    const totalCost = sumUsageCost(usage);
+    const todayCost = getUsageCostForDate(usage, todayUtcDate());
+    const latestDate = usage.length > 0 ? usage[usage.length - 1]?.date : null;
+    const requestUrl = new URL(c.req.url);
+    const baseUrl = resolveBaseUrl(requestUrl, c.env?.BASE_URL, defaultBaseUrl);
+    const base = baseUrl.replace(/\/$/, '');
+    const badgeUrl = new URL(`${base}/api/badge/${token}`);
+    const shieldsImageUrl = new URL(`${base}/api/shields/${token}/image`);
+
+    if (typeof days === 'number') {
+      badgeUrl.searchParams.set('days', String(days));
+      shieldsImageUrl.searchParams.set('days', String(days));
+    }
+
+    c.header('Cache-Control', CACHE_HEADER);
+    return c.json({
+      provider: record.provider ?? null,
+      name: record.name ?? null,
+      source: record.source ?? null,
+      days: typeof days === 'number' ? days : null,
+      totalCost,
+      todayCost,
+      currency: 'USD',
+      latestDate,
+      lastUpdated: record.lastUpdated ?? null,
+      updatedAt: record.updatedAt ?? null,
+      badgeUrl: badgeUrl.toString(),
+      shieldsUrl: shieldsImageUrl.toString(),
     });
   });
 

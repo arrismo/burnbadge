@@ -41,6 +41,21 @@ interface ShieldsResponseBody {
   html: string;
 }
 
+interface StatusResponseBody {
+  provider: string | null;
+  name: string | null;
+  source: string | null;
+  days: number | null;
+  totalCost: number;
+  todayCost: number;
+  currency: string;
+  latestDate: string | null;
+  lastUpdated: string | null;
+  updatedAt: string | null;
+  badgeUrl: string;
+  shieldsUrl: string;
+}
+
 const MOCK_USAGE = getMockUsage();
 
 function createRecord(
@@ -247,9 +262,18 @@ describe('createApp push usage model', () => {
     });
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { provider: string; usage: DailyUsage[] };
+    const body = (await response.json()) as {
+      provider: string;
+      usage: DailyUsage[];
+      lastUpdated: string;
+    };
     expect(body.provider).toBe('openrouter');
     expect(body.usage).toHaveLength(2);
+    expect(body.lastUpdated).toBeTruthy();
+
+    const usageResponse = await app.request(`/api/usage/${usageToken}`);
+    const usageBody = (await usageResponse.json()) as { lastUpdated: string };
+    expect(usageBody.lastUpdated).toBe(body.lastUpdated);
 
     const badgeResponse = await app.request(`/api/badge/${badgeToken}`);
     expect(badgeResponse.status).toBe(200);
@@ -367,6 +391,55 @@ describe('createApp push usage model', () => {
     expect(response.status).toBe(404);
   });
 
+  it('returns public status data from the public badge token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    const record = createRecord(badgeToken, 'openai', usageToken, [
+      { date: '2026-04-20', cost: 1.25 },
+      { date: '2026-04-21', cost: 2.5 },
+      { date: new Date().toISOString().slice(0, 10), cost: 0.75 },
+    ]);
+    record.name = 'OpenAI README badge';
+    record.source = 'burnbar';
+    record.lastUpdated = '2026-04-21T12:00:00.000Z';
+    await storage.save(record);
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+    const response = await app.request(`/api/status/${badgeToken}?days=2`);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as StatusResponseBody;
+    expect(body).toMatchObject({
+      provider: 'openai',
+      name: 'OpenAI README badge',
+      source: 'burnbar',
+      days: 2,
+      totalCost: 3.25,
+      todayCost: 0.75,
+      currency: 'USD',
+      lastUpdated: '2026-04-21T12:00:00.000Z',
+    });
+    expect(body.badgeUrl).toBe(`${DEFAULT_BASE_URL}/api/badge/${badgeToken}?days=2`);
+    expect(body.shieldsUrl).toBe(`${DEFAULT_BASE_URL}/api/shields/${badgeToken}/image?days=2`);
+  });
+
+  it('blocks public status reads from the private usage token', async () => {
+    const badgeToken = 'badge-public';
+    const usageToken = 'usage-private';
+    await storage.save(createRecord(badgeToken, 'mock', usageToken));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+    const response = await app.request(`/api/status/${usageToken}`);
+
+    expect(response.status).toBe(404);
+  });
+
   it('returns private usage and chart URLs on project creation', async () => {
     const app = createApp({
       storage,
@@ -375,7 +448,11 @@ describe('createApp push usage model', () => {
     const response = await app.request('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: 'mock' }),
+      body: JSON.stringify({
+        provider: 'mock',
+        name: 'README spend badge',
+        source: 'burnbar',
+      }),
     });
 
     expect(response.status).toBe(201);
@@ -392,6 +469,14 @@ describe('createApp push usage model', () => {
     expect(body.badgeUrl).toContain(`/api/badge/${body.badgeToken}`);
     expect(body.chartUrl).toContain(`/api/chart/${body.usageToken}`);
     expect(body.usageUrl).toContain(`/api/usage/${body.usageToken}`);
+
+    const statusResponse = await app.request(`/api/status/${body.badgeToken}`);
+    expect(statusResponse.status).toBe(200);
+    expect(await statusResponse.json()).toMatchObject({
+      provider: 'mock',
+      name: 'README spend badge',
+      source: 'burnbar',
+    });
   });
 
   it('keeps the legacy register route as a create-project alias', async () => {
