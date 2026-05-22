@@ -137,6 +137,22 @@ describe('createApp push usage model', () => {
     expect(shieldsUrl.searchParams.get('logo')).toBe('openrouter');
   });
 
+  it('uses a Shields-supported OpenAI-compatible logo slug', async () => {
+    const token = 'token-openai';
+    await storage.save(createRecord(token, 'openai'));
+
+    const app = createApp({
+      storage,
+      defaultBaseUrl: DEFAULT_BASE_URL,
+    });
+    const response = await app.request(`/api/shields/${token}`);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ShieldsResponseBody;
+    const shieldsUrl = new URL(body.imageUrl);
+    expect(shieldsUrl.searchParams.get('logo')).toBe('openaigym');
+  });
+
   it('preserves an explicit Shields logo override', async () => {
     const token = 'token-anthropic';
     await storage.save(createRecord(token, 'anthropic'));

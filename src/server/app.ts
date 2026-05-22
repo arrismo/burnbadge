@@ -280,7 +280,7 @@ const SHIELDS_FORWARD_KEYS = [
 
 const DEFAULT_PROVIDER_LOGOS: Partial<Record<ProviderId, string>> = {
   anthropic: 'anthropic',
-  openai: 'openai',
+  openai: 'openaigym',
   openrouter: 'openrouter',
 };
 
